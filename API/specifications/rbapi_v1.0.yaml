@@ -1,0 +1,779 @@
+swagger: '2.0'
+info:
+  title: Money Transfer Message Broker
+  description: >
+    This is the RESTful API for the Money Transfer Message Broker Platform. This
+    API includes methods for sending and receiving messages between agents with
+    transaction and other information payloads. The first version of the MTMB API
+    is an exciting step forward towards making it easier for money transfer
+    businesses to integrate their systems with each other with minimal
+    development effort.  ** Developer Notes: **  All endpoints are only
+    accessible via https and are located at api.mtmb.com. Use an access_token for
+    the authenticated user for each endpoint. You will need separate access
+    tokens for testing and production.  ** Fair Usage Policy **  If you're
+    sending too many requests too quickly, we'll send back a 503 error code
+    (server unavailable).
+  version: 1.2.0
+  termsOfService: www.advantapi.com/terms/
+  contact:
+    name: API Support
+    url: www.advantapi.com/support/
+    email: support@advantapi.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: api.advantapi.com
+basePath: /v1
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    description: Access to this API requires an API key which will be provided on request.
+    name: api_key
+    in: header
+paths:
+  /transactions:
+    post:
+      tags:
+        - transactions
+      summary: Post a new transaction for processing
+      description: This method posts a new transaction for processing by a receiver.
+      operationId: postTransaction
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: transaction
+          description: The transasction object to be posted
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Transaction'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+    get:
+      tags:
+        - transactions
+      summary: Get all tranasction for the requesting agent
+      description: Returns transactions intended for the requesting agent. Mayinclude new transactions for a payout agent or processed transaction for the send agent to record.
+      operationId: getTransaction
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Transaction'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /transactions/modify:
+    post:
+      tags:
+        - transactions
+      summary: Post a modification (amend) request for an existing transaction
+      description: This method posts a modification (amend) request for an existing transaction which may be accepted or rejected by the target payout agent depending on the status of the transaction.
+      operationId: modifyTransaction
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: transaction
+          description: The transaction object to be modified
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Transaction'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /transactions/cancel:
+    post:
+      tags:
+        - transactions
+      summary: Post a cancellation request for an existing transaction
+      description: This method posts a cancellation request for an existing transaction which may be accepted or rejected by the target payout agent depending on the status of the transaction.
+      operationId: cancelTransaction
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: transaction
+          description: The transaction object to be cancelled
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Transaction'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /transactions/respond:
+    post:
+      tags:
+        - transactions
+      summary: Post a response to a transaction request
+      description: This method posts a response to a transaction request.
+      operationId: postTransactionResponse
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: txnResponse
+          description: The response object to be posted
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/TxnResponse'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /fxrates:
+    post:
+      tags:
+        - fxrates
+      summary: Post FX rates
+      description: 'This method allows payout agents to post current FX rates by send agent, corridor and product.'
+      operationId: postFXRates
+      produces:
+        - application/json
+      parameters:
+        - name: fxrate
+          description: The fxrate object to be posted
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/FXRate'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+    get:
+      tags:
+        - fxrates
+      summary: Get FX rates
+      description: This method allows send agent to get current FX rates for payout agents.
+      operationId: getFXRates
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/FXRate'
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+  /rules:
+    post:
+      tags:
+        - rules
+      summary: Post a rule
+      description: This method allows agents to post rules applicable to transactions they can accept for processing.
+      operationId: postRule
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: rule
+          description: The rule definition.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Rule'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+            description: Remit amount limit
+        '400':
+          description: Missing parameters
+          schema:
+            $ref: '#/definitions/MissingParams'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+    get:
+      tags:
+        - rules
+      summary: Get all rules posted by partner agents
+      description: This method returns rules posted by partner agents.
+      operationId: getAllRules
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Rule'
+            description: Rule object
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+        
+  /rules/{agentId}:
+    get:
+      tags:
+        - rules
+      summary: Get all rules posted by agent with agentId
+      description: This method returns rules posted by the identified partner agent.
+      operationId: getRuleByAgent
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: agentId
+          description: Agent Id for which rules to be fetched
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Rule'
+            description: Rule object
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+        
+  /agents/{agentId}:
+    get:
+      tags:
+        - agents
+      summary: Find agent by id
+      description: Returns the agent details.
+      operationId: getAgentById
+      produces:
+        - application/json
+      parameters:
+        - name: agentId
+          description: agentId of the agent whose details are requested
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Agent'
+        '404':
+          description: Agent not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+        
+definitions:
+  Transaction:
+    required:
+      - txnId
+      - createdDateTime
+      - txnPayoutCode
+      - sendAgentId
+      - status
+      - statusDateTime
+      - corridor
+      - product
+      - remitter
+      - beneficiary
+      - remitterAmount
+      - beneficiaryAmount
+    properties:
+      txnId:
+        type: string
+        description: Universal transaction id globally unique.
+      createdDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction creation in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      amendReqDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction amend request in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      cancelReqDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction cancel request in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      txnSendAgentRefNum:
+        type: string
+        description: The send agent reference number.
+      txnPayoutAgentRefNum:
+        type: string
+        description: The payout agent reference number.
+      txnPayoutCode:
+        type: string
+        description: The payout code to be presented by the beneficiary when collecting the money.
+      sendAgentId:
+        type: string
+        description: Remit agent uid populated when a transaction is created.
+      payoutAgentId:
+        type: string
+        description: Receive agent uid populated when a transaction is processed. May be populated when created when intended for a particualr receive agent only.
+      status:
+        $ref: '#/definitions/Status'
+        description: Transaction status.
+      statusDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction status in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      corridor:
+        $ref: '#/definitions/Corridor'
+        description: Corridor comprising of origin and destination country-currency pairs .
+      product:
+        $ref: '#/definitions/Product'
+        description: Product in transaction.
+      remitter:
+        $ref: '#/definitions/Customer'
+        description: Remitter details.
+      beneficiary:
+        $ref: '#/definitions/Customer'
+        description: Beneficiary details.
+      remitterCountryISO3Code:
+        type: string
+        description: Remitter country (ISO3 code).
+      remitterAmount:
+        $ref: '#/definitions/Money'
+        description: Remittance currency (ISO3 code) and amount.
+      beneficiaryCountryISO3Code:
+        type: string
+        description: Beneficiary country (ISO3 code)
+      beneficiaryAmount:
+        $ref: '#/definitions/Money'
+        description: Beneficiary currency (ISO3 code) and amount
+      beneficiaryBankAccount:
+        $ref: '#/definitions/BankAccount'
+        description: Beneficiary currency (ISO3 code) and amount
+      purpose:
+        type: string
+        description: Purpose of remittance.
+      sourceOfFunds:
+        type: string
+        description: Source of funds.
+  TxnResponse:
+    required:
+      - txnId
+      - status
+      - statusDateTime
+      - message
+    properties:
+      txnId:
+        type: string
+        description: Universal transaction id globally unique.
+      payoutDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      amendDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction amend in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      cancelDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction cancel in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      txnPayoutAgentRefNum:
+        type: string
+        description: The payout agent reference number.
+      payoutAgentId:
+        type: string
+        description: Receive agent uid populated when a transaction is processed. May be populated when created when intended for a particualr receive agent only.
+      status:
+        $ref: '#/definitions/Status'
+        description: Transaction status.
+      statusDateTime:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction status in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      message:
+        $ref: '#/definitions/Message'
+        description: A message object to pass information from payout agent to sending agent especially if a request is rejected.
+      missingParameters:
+        $ref: '#/definitions/MissingParams'
+        description: 'List of missing parameters required for completion of transaction. These are transaction level missing parameters, must use the same parameter names as the model specifications. While the response to the API call returns method level missing parameters, which is usually only the payload object.'
+  FXRate:
+    required:
+      - corridor
+      - product
+      - rate
+    properties:
+      corridor:
+        $ref: '#/definitions/Corridor'
+        description: Product in transaction
+      product:
+        $ref: '#/definitions/Product'
+        description: Product in transaction
+      rate:
+        type: number
+        format: double
+        description: Beneficiary amount
+      positivemargin:
+        type: number
+        format: double
+        description: Permitted positive margin variance.
+      negativemargin:
+        type: number
+        format: double
+        description: Permitted negative margin variance.
+  Product:
+    required:
+      - productCode
+      - productDesc
+    properties:
+      productCode:
+        type: string
+        description: 3-character universal product code
+      productDesc:
+        type: string
+        description: Product description
+  Corridor:
+    description: Comprises of origin and destination country-currency pairs.
+    required:
+      - sendCountryISO3Code
+      - sendCurrencyISO3Code
+      - payoutCountryISO3Code
+      - payoutCurrencyISO3Code
+    properties:
+      sendCountryISO3Code:
+        type: string
+        description: Send country (ISO3 code)
+      sendCurrencyISO3Code:
+        type: string
+        description: Send currency (ISO3 code)
+      payoutCountryISO3Code:
+        type: string
+        description: Payout country (ISO3 code)
+      payoutCurrencyISO3Code:
+        type: string
+        description: Payout currency (ISO3 code)
+  Money:
+    required:
+      - currencyISO3Code
+      - amount
+    properties:
+      currencyISO3Code:
+        type: string
+        description: Currency (ISO3 code)
+      amount:
+        type: number
+        format: double
+        description: Amount
+  BankAccount:
+    required:
+      - accountName
+      - accountNumber
+      - bankCode
+      - bankName
+    properties:
+      accountName:
+        type: string
+        description: Account holder name.
+      accountNumber:
+        type: string
+        description: Account number.
+      bankCode:
+        type: string
+        description: Bank code as per receiving country format.
+      bankName:
+        type: string
+        description: Bank name.
+      bankAddress:
+        $ref: '#/definitions/Address'
+        description: Bank address.
+      branchCode:
+        type: string
+        description: Branch code as per receiving country format.
+      branchName:
+        type: string
+        description: Branch name.
+      branchAddress:
+        $ref: '#/definitions/Address'
+        description: Branch address.
+  Agent:
+    required:
+      - agentId
+      - legalName
+      - tradingName
+      - address
+      - phoneNumber
+      - emailId
+      - service
+      - products
+    properties:
+      agentId:
+        type: string
+        description: An agent identifier unique across the platform
+      legalName:
+        type: string
+        description: 'Legal name of the agent, generally not displayed to the customer'
+      tradingName:
+        type: string
+        description: 'Trading name of the agent, generally displayed to the cutomer'
+      address:
+        $ref: '#/definitions/Address'
+        description: Product in transaction
+      phoneNumber:
+        type: string
+        description: Complete phone number including country and area codes
+      emailId:
+        type: string
+        description: "Agent's email id for customer suport requests"
+      service:
+        type: string
+        description: 'Service code, only one of Remit or Receive. And agent that both remits and receives will need to have two unique entities on the platform'
+      products:
+        type: array
+        items:
+          type: string
+        description: Array of product codes for products serviced
+  Customer:
+    required:
+      - firstName
+      - lastName
+      - address
+      - phoneNumber
+      - id
+    properties:
+      firstName:
+        type: string
+        description: 'The customer first name exactly as it appears on the id presented, may be a two part first name or first name and middle name or initial.'
+      lastName:
+        type: string
+        description: 'The customer last name exactly as it appears on the id presented, may be a multi part last name.'
+      emailId:
+        type: string
+        description: Email Id
+      phoneNumber:
+        type: string
+        description: Complete phone number including country and area codes
+      dateOfBirth:
+        type: string
+        format: date
+        description: Date of birth
+      nationalityISO3Code:
+        type: string
+        description: Nationality (ISO3 code)
+      gender:
+        type: string
+        description: 'Gender codes (M=Male, F=Female, O=Other)'
+      occupation:
+        type: string
+        description: "Customer's occupation"
+      address:
+        $ref: '#/definitions/Address'
+        description: Product in transaction
+      id:
+        $ref: '#/definitions/Id'
+        description: Product in transaction
+  Address:
+    required:
+      - streetAddress
+      - city
+      - countryISO3Code
+    properties:
+      streetAddress:
+        type: string
+        description: Street address including house number and street name
+      city:
+        type: string
+        description: City name
+      state:
+        type: string
+        description: State name
+      postalCode:
+        type: string
+        description: Postal code (pin code / zip code)
+      countryISO3Code:
+        type: string
+        description: Address country (ISO3 code)
+  Id:
+    required:
+      - number
+      - type
+    properties:
+      number:
+        type: string
+        description: Id number
+      type:
+        type: string
+        description: Id type
+      expiryDate:
+        type: string
+        format: date
+        description: Id expiry date
+      issuingCountryISO3Code:
+        type: string
+        description: Issuing country (ISO3 code)
+  Rule:
+    description: The rule object model will consist of multiple types of rules typically defined by payout agents for send agents to apply when capturing a transaction.
+    required:
+      - definingAgentId
+      - ruleType
+    properties:
+      definingAgentId:
+        type: string
+        description: Id of agent posting this rule.
+      ruleType:
+        type: string
+        description: 'Applicable to Send or Payout. (S=Send side rule, P=Payout side rule).'
+      appliesToAgentId:
+        type: string
+        description: Id of agent for which this rule is applicable. Null or empty implies the rule is applicable for all agents.
+      product:
+        $ref: '#/definitions/Product'
+        description: Product for which the rule applies. Null or empty implies that the rule applies for all products.
+      sendCountryISO3Code:
+        type: string
+        description: Send country (ISO3 code). Null or empty implies all send countries.
+      sendCurrencyISO3Code:
+        type: string
+        description: Send currency (ISO3 code). Null or empty implies all send currencies.
+      payoutCountryISO3Code:
+        type: string
+        description: Payout country (ISO3 code). Null or empty implies all payout countries.
+      payoutCurrencyISO3Code:
+        type: string
+        description: Payout currency (ISO3 code). Null or empty implies all payout currencies.
+  Status:
+    required:
+      - statusCode
+      - statusDesc
+    properties:
+      statusCode:
+        type: string
+        description: 3-character universal status code
+      statusDesc:
+        type: string
+        description: Status description
+  MissingParams:
+    properties:
+      params:
+        type: array
+        items:
+          type: string
+  Message:
+    required:
+      - messageCode
+      - messageDesc
+    properties:
+      messageCode:
+        type: string
+        description: '3-character message code (REQ_ACK=Received but not confirmed, REQ_OK=Received and confirmed accepted, REQ_REJ=Received but rejected with reasons in message body)'
+      messageDesc:
+        type: string
+        description: Message description
+      messageBody:
+        type: string
+        description: Detailed message body
+  Error:
+    required:
+      - errorCode
+      - errorDesc
+    properties:
+      errorCode:
+        type: string
+        description: 3-character HTTP error code
+      errorDesc:
+        type: string
+        description: Error description
+      errorBody:
+        type: string
+        description: Detailed error body
