@@ -22,7 +22,7 @@
                 <h4>PRODUCTS</h4>
                 <div>
                     <ul class="arrow">
-                        <li><a href="#">Money Transfer Message Broker</a></li>
+                        <li><a href="#">RemitBroker</a></li>
                         <li><a href="#">Pricing</a></li>
                         <li><a href="#">FAQ</a></li>
                     </ul>
@@ -67,7 +67,7 @@
 	
 	<div class="row">
             <div class="col-md-12 cp">
-                &copy; 2016 <a target="_blank" href="http://www.advantapi.com/" title="">AdvantAPI</a>. All Rights Reserved.
+                &copy; 2016 <a target="_blank" href="http://www.remitbroker.com/" title="">RemitBroker</a>. All Rights Reserved.
             </div>
             <!--/Copyright-->
 	</div>

@@ -1,4 +1,4 @@
-<?php include $_SERVER['DOCUMENT_ROOT']."/web/header.php"; ?>
+<?php include $_SERVER['DOCUMENT_ROOT']."/header.php"; ?>
 
     <!--Slider-->
     <section id="slide-show">
@@ -240,4 +240,4 @@
         </div>
     </section>
 
-<?php include $_SERVER['DOCUMENT_ROOT']."/web/footer.php"; ?>
+<?php include $_SERVER['DOCUMENT_ROOT']."/footer.php"; ?>
