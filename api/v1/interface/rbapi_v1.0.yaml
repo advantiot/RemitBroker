@@ -1,28 +1,19 @@
 swagger: '2.0'
 info:
-  title: Money Transfer Message Broker
-  description: >
-    This is the RESTful API for the Money Transfer Message Broker Platform. This
-    API includes methods for sending and receiving messages between agents with
-    transaction and other information payloads. The first version of the MTMB API
-    is an exciting step forward towards making it easier for money transfer
-    businesses to integrate their systems with each other with minimal
-    development effort.  ** Developer Notes: **  All endpoints are only
-    accessible via https and are located at api.mtmb.com. Use an access_token for
-    the authenticated user for each endpoint. You will need separate access
-    tokens for testing and production.  ** Fair Usage Policy **  If you're
-    sending too many requests too quickly, we'll send back a 503 error code
-    (server unavailable).
-  version: 1.2.0
-  termsOfService: www.advantapi.com/terms/
+  title: RemitBroker API
+  description: > 
+      This is the RESTful API for the RemitBroker Platform. This API includes methods for sending and receiving messages between agents with transaction and other information payloads. The first version of the RemitBroker API is an exciting step forward towards making it easier for global remittance businesses to integrate their systems with each other with minimal development effort. The adoption of standard information exchange formats will also go a long way towards simplifying the remittance process. Developer Notes: All endpoints are only accessible via https and are located at api.remitbroker.com. The API needs an API key for initial authentication and uses JSON Web Tokens for isubsequent request authentication. You will need separate API keys and access tokens for testing and production. All dates are in UTC timezone in the format defined in RFC3339: 2016-01-01T14:20:50Z. Fair Usage Policy: If you are sending too many requests too quickly, the API will send back a 503 error code (server unavailable). 
+
+  version: 1.0.0
+  termsOfService: www.remitbroker.com/terms/
   contact:
     name: API Support
-    url: www.advantapi.com/support/
-    email: support@advantapi.com
+    url: www.remitbroker.com/support/
+    email: support@remitbroker.com
   license:
     name: Apache 2.0
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
-host: api.advantapi.com
+host: api.remitbroker.com
 basePath: /v1
 schemes:
   - https
@@ -31,10 +22,10 @@ consumes:
 produces:
   - application/json
 securityDefinitions:
-  api_key:
+  bearer:
     type: apiKey
-    description: Access to this API requires an API key which will be provided on request.
-    name: api_key
+    description: Access to this API requires a JWT received by calling the login method. Not supported by Swagger.
+    name: x-access-token
     in: header
 paths:
   /transactions:
@@ -365,89 +356,115 @@ paths:
 definitions:
   Transaction:
     required:
-      - txnId
-      - createdDateTime
-      - txnPayoutCode
-      - sendAgentId
+      - sndr_rmtr_id
+      - rcvr_rmtr_id
+      - posted_on
       - status
-      - statusDateTime
-      - corridor
-      - product
-      - remitter
-      - beneficiary
-      - remitterAmount
-      - beneficiaryAmount
+      - txn_data
     properties:
-      txnId:
+      sndr_rmtr_id:
         type: string
-        description: Universal transaction id globally unique.
-      createdDateTime:
+        description: Sender Remitter Id issued by RemitBroker (unencryted).
+      rcvr_rmtr_id:
         type: string
-        format: date-time
-        description: 'Date and Time of transaction creation in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      amendReqDateTime:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction amend request in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      cancelReqDateTime:
+        description: Receiver Remitter Id issued by RemitBroker (unencrypted).
+      posted_on:
         type: string
         format: date-time
-        description: 'Date and Time of transaction cancel request in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      txnSendAgentRefNum:
-        type: string
-        description: The send agent reference number.
-      txnPayoutAgentRefNum:
-        type: string
-        description: The payout agent reference number.
-      txnPayoutCode:
-        type: string
-        description: The payout code to be presented by the beneficiary when collecting the money.
-      sendAgentId:
-        type: string
-        description: Remit agent uid populated when a transaction is created.
-      payoutAgentId:
-        type: string
-        description: Receive agent uid populated when a transaction is processed. May be populated when created when intended for a particualr receive agent only.
+        description: 'Date and Time this transaction was posted to the RB platform.'
       status:
         $ref: '#/definitions/Status'
-        description: Transaction status.
-      statusDateTime:
+        description: Transaction status (unencrypted).
+      txn_data:
+        $ref: '#/definitions/TransactionData'
+        description: Transaction data (encrypted).
+
+  TransactionData:
+    required:
+      - sndr_txn_num
+      - bene_code
+      - sndr_cntry_code 
+      - rcvr_cntry_code
+      - created_on
+      - chng_req_on
+      - sender
+      - beneficiary
+      - product
+      - send_amnt
+      - bene_amnt
+      - fxrate
+      - fees
+      - taxes
+      - discounts
+
+    properties:
+      sndr_txn_num:
+        type: string
+        description: Sending remitter transaction number. 
+      rcvr_txn_num:
+        type: string
+        description: Receiving remitter transaction number. 
+      bene_code:
+        type: string
+        description: Code issued to beneficiary to be used when collecting money.
+      sndr_cntry_code:
+        type: string
+        description: Sending country ISO3 country code.
+      rcvr_cntry_code:
+        type: string
+        description: Receiving country ISO3 country code.
+      created_on:
         type: string
         format: date-time
-        description: 'Date and Time of transaction status in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      corridor:
-        $ref: '#/definitions/Corridor'
-        description: Corridor comprising of origin and destination country-currency pairs .
-      product:
-        $ref: '#/definitions/Product'
-        description: Product in transaction.
-      remitter:
+        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      chng_req_on:
+        type: string
+        format: date-time
+        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+      sender:
         $ref: '#/definitions/Customer'
-        description: Remitter details.
+        description: Details of sender.
       beneficiary:
         $ref: '#/definitions/Customer'
-        description: Beneficiary details.
-      remitterCountryISO3Code:
-        type: string
-        description: Remitter country (ISO3 code).
-      remitterAmount:
+        description: Details of beneficiary.
+      product:
+        $ref: '#/definitions/Product'
+        description: Product in transaction
+      send_amnt:
         $ref: '#/definitions/Money'
-        description: Remittance currency (ISO3 code) and amount.
-      beneficiaryCountryISO3Code:
-        type: string
-        description: Beneficiary country (ISO3 code)
-      beneficiaryAmount:
+        description: Currency and amount to be sent.
+      bene_amnt:
         $ref: '#/definitions/Money'
-        description: Beneficiary currency (ISO3 code) and amount
-      beneficiaryBankAccount:
-        $ref: '#/definitions/BankAccount'
-        description: Beneficiary currency (ISO3 code) and amount
+        description: Currency and amount that will be received.
+      fxrate:
+        type: number
+        format: double
+        description: FX rate.
+      fees:
+        type: array
+        items:
+            $ref: '#/definitions/Charge'
+        description: Multiple Fee definitions possible
+      taxes:
+        type: array
+        items:
+            $ref: '#/definitions/Charge'
+        description: Multiple Taxes definitions possible
+      discounts:
+        type: array
+        items:
+            $ref: '#/definitions/Charge'
+        description: Multiple Discount definitions possible.
+      bene_account:
+        $ref: '#/definitions/Account'
+        description: Beneficiary bank or other account details.
       purpose:
         type: string
-        description: Purpose of remittance.
-      sourceOfFunds:
+        description:  Purpose of remittance.
+      msg:
         type: string
-        description: Source of funds.
+        description: Optional message between remitters. 
+
   TxnResponse:
     required:
       - txnId
@@ -504,7 +521,7 @@ definitions:
       rate:
         type: number
         format: double
-        description: Beneficiary amount
+        description: FX rate.
       positivemargin:
         type: number
         format: double
@@ -515,69 +532,84 @@ definitions:
         description: Permitted negative margin variance.
   Product:
     required:
-      - productCode
-      - productDesc
+      - code
+      - desc
     properties:
-      productCode:
+      code:
         type: string
         description: 3-character universal product code
-      productDesc:
+      desc:
         type: string
         description: Product description
   Corridor:
     description: Comprises of origin and destination country-currency pairs.
     required:
-      - sendCountryISO3Code
-      - sendCurrencyISO3Code
-      - payoutCountryISO3Code
-      - payoutCurrencyISO3Code
+      - send_cntry_code
+      - send_currency_code
+      - recv_cntry_code
+      - recv_currency_code
     properties:
-      sendCountryISO3Code:
+      send_cntry_code:
         type: string
         description: Send country (ISO3 code)
-      sendCurrencyISO3Code:
+      send_currency_code:
         type: string
         description: Send currency (ISO3 code)
-      payoutCountryISO3Code:
+      recv_cntry_code:
         type: string
         description: Payout country (ISO3 code)
-      payoutCurrencyISO3Code:
+      recv_currency_code:
         type: string
         description: Payout currency (ISO3 code)
   Money:
     required:
-      - currencyISO3Code
+      - currency
       - amount
     properties:
-      currencyISO3Code:
+      currency:
         type: string
         description: Currency (ISO3 code)
       amount:
         type: number
         format: double
         description: Amount
+  Charge:
+    required:
+      - name
+      - value
+    properties:
+      name:
+        type: string
+        description: Name for the charge (Base Fee, Sales Tax, Promo Discount) 
+      value:
+        $ref: '#/definitions/Money'
+        description: Value of the charge, including currency and amount 
   BankAccount:
     required:
-      - accountName
-      - accountNumber
-      - bankCode
-      - bankName
+      - number
+      - inst_name
     properties:
-      accountName:
+      name:
         type: string
-        description: Account holder name.
-      accountNumber:
+        description: Account holder name. Optional, only if different from bene name.
+      number:
         type: string
         description: Account number.
-      bankCode:
+      code:
         type: string
-        description: Bank code as per receiving country format.
-      bankName:
+        description: IMPS or any alternative to account number.
+      type:
         type: string
-        description: Bank name.
-      bankAddress:
+        description: Bank account tyoe or other type such as mobile wallet.
+      inst_name:
+        type: string
+        description: Bank or other institution name.
+      inst_code:
+        type: string
+        description: Bank or institution code as per receiving country format.
+      inst_address:
         $ref: '#/definitions/Address'
-        description: Bank address.
+        description: Bank or  address.
       branchCode:
         type: string
         description: Branch code as per receiving country format.
@@ -626,68 +658,75 @@ definitions:
         description: Array of product codes for products serviced
   Customer:
     required:
-      - firstName
-      - lastName
-      - address
-      - phoneNumber
-      - id
+      - name
+      - curr_address
+      - phone
+      - dob
+      - nationality
+      - id_doc
     properties:
-      firstName:
+      name:
+        $ref: '#/definitions/Name'
+        description: Name of the customer as it appears on the ID presented. Can be split into parts or entered as a whole.
+      curr_address:
+        $ref: '#/definitions/Address'
+        description: Current address of the customer.
+      perm_address:
+        $ref: '#/definitions/Address'
+        description: Permanent address of the customer.
+      email:
         type: string
-        description: 'The customer first name exactly as it appears on the id presented, may be a two part first name or first name and middle name or initial.'
-      lastName:
-        type: string
-        description: 'The customer last name exactly as it appears on the id presented, may be a multi part last name.'
-      emailId:
-        type: string
-        description: Email Id
-      phoneNumber:
+        description: Email Id of the customer.
+      phone:
         type: string
         description: Complete phone number including country and area codes
-      dateOfBirth:
+      dob:
         type: string
         format: date
         description: Date of birth
-      nationalityISO3Code:
+      nationality:
         type: string
         description: Nationality (ISO3 code)
-      gender:
-        type: string
-        description: 'Gender codes (M=Male, F=Female, O=Other)'
-      occupation:
-        type: string
-        description: "Customer's occupation"
-      address:
-        $ref: '#/definitions/Address'
-        description: Product in transaction
-      id:
-        $ref: '#/definitions/Id'
-        description: Product in transaction
+      id_doc:
+        $ref: '#/definitions/IdDoc'
+        description:  Legal identification document.
+      other_info:
+        type: array
+        items:
+          $ref: '#/definitions/KeyValuePair'
+        description:  Open key value pairs
   Address:
     required:
-      - streetAddress
+      - street
       - city
-      - countryISO3Code
+      - postcode
+      - state
+      - country
     properties:
-      streetAddress:
+      street:
         type: string
-        description: Street address including house number and street name
+        description: Street address including house number and street name.
+      locality:
+        type: string
+        description: Street address including house number and street name.
       city:
         type: string
-        description: City name
+        description: City name.
+      postcode:
+        type: string
+        description: Postal code (pin code / zip code).
       state:
         type: string
-        description: State name
-      postalCode:
+        description: State name.
+      country:
         type: string
-        description: Postal code (pin code / zip code)
-      countryISO3Code:
-        type: string
-        description: Address country (ISO3 code)
-  Id:
+        description: Address country (ISO3 code).
+  IdDoc:
     required:
       - number
       - type
+      - expires_on
+      - country
     properties:
       number:
         type: string
@@ -695,11 +734,11 @@ definitions:
       type:
         type: string
         description: Id type
-      expiryDate:
+      expires_on:
         type: string
         format: date
         description: Id expiry date
-      issuingCountryISO3Code:
+      country:
         type: string
         description: Issuing country (ISO3 code)
   Rule:
@@ -732,17 +771,18 @@ definitions:
       payoutCurrencyISO3Code:
         type: string
         description: Payout currency (ISO3 code). Null or empty implies all payout currencies.
+
   Status:
     required:
-      - statusCode
-      - statusDesc
+      - status_code
+      - status_desc
     properties:
-      statusCode:
+      status_code:
         type: string
-        description: 3-character universal status code
-      statusDesc:
+        description: 3-character universal status code.
+      status_desc:
         type: string
-        description: Status description
+        description: Status description.
   MissingParams:
     properties:
       params:
@@ -765,15 +805,26 @@ definitions:
         description: Detailed message body
   Error:
     required:
-      - errorCode
-      - errorDesc
+      - error_code
+      - error_msg
     properties:
-      errorCode:
+      error_code:
         type: string
-        description: 3-character HTTP error code
-      errorDesc:
+        description: HTTP error code.
+      error_msg:
         type: string
-        description: Error description
-      errorBody:
+        description: Error messsage.
+      error_body:
         type: string
-        description: Detailed error body
+        description: Detailed error information.
+  KeyValuePair:
+    required:
+      - key
+      - value
+    properties:
+      key:
+        type: string
+        description: Attribute identifier.
+      value:
+        type: string
+        description: Attribute value.
