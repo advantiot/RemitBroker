@@ -2,8 +2,7 @@ swagger: '2.0'
 info:
   title: RemitBroker API
   description: > 
-      This is the RESTful API for the RemitBroker Platform. This API includes methods for sending and receiving messages between agents with transaction and other information payloads. The first version of the RemitBroker API is an exciting step forward towards making it easier for global remittance businesses to integrate their systems with each other with minimal development effort. The adoption of standard information exchange formats will also go a long way towards simplifying the remittance process. Developer Notes: All endpoints are only accessible via https and are located at api.remitbroker.com. The API needs an API key for initial authentication and uses JSON Web Tokens for isubsequent request authentication. You will need separate API keys and access tokens for testing and production. All dates are in UTC timezone in the format defined in RFC3339: 2016-01-01T14:20:50Z. Fair Usage Policy: If you are sending too many requests too quickly, the API will send back a 503 error code (server unavailable). 
-
+      This is the RESTful API for the RemitBroker Platform. This API includes methods for sending and receiving messages between remitters with transaction and other information payloads. All messages include unencrypted metadata which has information used by RemitBroker only for routing messages and encrypted message data which cannot be read by RemitBroker but only by the intended recipients, making this exchange highly confidential and secure. The first version of the RemitBroker API is an exciting step forward towards making it easier for global remittance businesses to integrate their systems with each other with minimal development effort. The adoption of standard information exchange formats will also go a long way towards simplifying the remittance process. Developer Notes. All endpoints are only accessible via https and are located at api.remitbroker.com. The API needs an API key for initial authentication and uses JSON Web Tokens for subsequent request authentication. You will need separate API keys and access tokens for testing and production. All dates are in UTC timezone in the UNIX time format (seconds since epoch). Fair Usage Policy: If you are sending too many requests too quickly, the API will send back a 503 error code (server unavailable). Reference: https://apihandyman.io/writing-openapi-swagger-specification-tutorial-part-1-introduction/
   version: 1.0.0
   termsOfService: www.remitbroker.com/terms/
   contact:
@@ -22,37 +21,38 @@ consumes:
 produces:
   - application/json
 securityDefinitions:
-  bearer:
+  api_key: 
     type: apiKey
-    description: Access to this API requires a JWT received by calling the login method. Not supported by Swagger.
-    name: x-access-token
     in: header
+    name: x-access-token
+    description: Access to this API requires a JWT received by calling the login method. Not supported by Swagger.
+
 paths:
-  /transactions:
+  /transactions/requests:
     post:
       tags:
         - transactions
-      summary: Post a new transaction for processing
-      description: This method posts a new transaction for processing by a receiver.
-      operationId: postTransaction
+      summary: Post a new transaction request for processing
+      description: This method posts a new transaction request for retrieval by a receiver. Also posts a confirmatin of payout with additional details from the payout process.
+      operationId: postOne
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
         - name: transaction
-          description: The transasction object to be posted
+          description: The transaction object to be posted
           in: body
           required: true
           schema:
-            $ref: '#/definitions/Transaction'
+            $ref: '#/definitions/TxnRequest'
       responses:
         '200':
           description: OK
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         default:
           description: Unknown error
           schema:
@@ -62,9 +62,9 @@ paths:
     get:
       tags:
         - transactions
-      summary: Get all tranasction for the requesting agent
-      description: Returns transactions intended for the requesting agent. Mayinclude new transactions for a payout agent or processed transaction for the send agent to record.
-      operationId: getTransaction
+      summary: Get all transaction for the requesting remitter
+      description: Returns transactions intended for the requesting remitter. Mayinclude new transactions for a payout remitter or processed transaction for the send remitter to record.
+      operationId: getAllMine
       produces:
         - application/json
       responses:
@@ -73,7 +73,7 @@ paths:
           schema:
             type: array
             items:
-              $ref: '#/definitions/Transaction'
+              $ref: '#/definitions/TxnRequest'
         '404':
           description: Transaction not found
         default:
@@ -82,31 +82,53 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-  /transactions/modify:
-    post:
+
+    delete:
       tags:
         - transactions
-      summary: Post a modification (amend) request for an existing transaction
-      description: This method posts a modification (amend) request for an existing transaction which may be accepted or rejected by the target payout agent depending on the status of the transaction.
-      operationId: modifyTransaction
+      summary: Delete all transactions from calling remitter if not retrieved by target remitter. 
+      description: This method deletes all transactions from the calling remitter in any status if they hav not yet been retrieved by the target remitters.
+      operationId: deleteAllTxnRequestsFromMe
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /transactions/requests/{sndr_txn_num}:
+    delete:
+      tags:
+        - transactions
+      summary: Delete a transaction if not retrieved by target remitter. 
+      description: This method deletes a transaction in any status if it has not yetbeen retrieved by the target remitter.
+      operationId: deleteOneWithId
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - name: transaction
-          description: The transaction object to be modified
-          in: body
+        - name: sndr_txn_num
+          description: The sndr_txn_num of the transaction to be deleted.
+          in: path
           required: true
-          schema:
-            $ref: '#/definitions/Transaction'
+          type: string
       responses:
         '200':
           description: OK
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         '404':
           description: Transaction not found
         default:
@@ -115,31 +137,35 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-  /transactions/cancel:
-    post:
+
+  /transactions/requests/remitter/{rmtr_id}:
+    get:
       tags:
         - transactions
-      summary: Post a cancellation request for an existing transaction
-      description: This method posts a cancellation request for an existing transaction which may be accepted or rejected by the target payout agent depending on the status of the transaction.
-      operationId: cancelTransaction
+      summary: Get transactions from specified remitter.
+      description: This method gets all transactions from the specified sending remitter. This is a destructive GET, all transactions will be deleted from the Queue/DB.
+      operationId: getAllMineFromRemitter
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - name: transaction
-          description: The transaction object to be cancelled
-          in: body
+        - name: rmtr_id
+          description: The sending remitter id whose transactions are to be retrieved.
+          in: path
           required: true
-          schema:
-            $ref: '#/definitions/Transaction'
+          type: string
       responses:
         '200':
           description: OK
-        '400':
-          description: Missing parameters
           schema:
-            $ref: '#/definitions/MissingParams'
+            type: array
+            items:
+              $ref: '#/definitions/TxnRequest'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
         '404':
           description: Transaction not found
         default:
@@ -148,19 +174,151 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-  /transactions/respond:
-    post:
+
+    delete:
       tags:
         - transactions
-      summary: Post a response to a transaction request
-      description: This method posts a response to a transaction request.
-      operationId: postTransactionResponse
+      summary: Delete all transactions to a target remitter if not retrieved by target remitter. 
+      description: This method deletes all transactions to the target remitter in any status if they have not yet been retrieved by the target remitter.
+      operationId: deleteAllTxnRequestsFromMeToRemitter
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - name: txnResponse
+        - name: rmtr_id
+          description: The remitter id the transactions to who are to be deleted.
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /transactions/requests/type/{type}:
+    get:
+      tags:
+        - transactions
+      summary: Get transactions by type.
+      description: This method gets all transactions of the specified type. This is a destructive GET, all transactions will be deleted from the Queue/DB.
+      operationId: getAllMineWithType
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: type 
+          description: The type of transactions to be retrieved.
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnRequest'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /transactions/requests/remitter/{rmtr_id}/type/{type}:
+    get:
+      tags:
+        - transactions
+      summary: Get transactions by remitter and type.
+      description: This method gets all transactions of the specified type. This is a destructive GET, all transactions will be deleted from the Queue/DB.
+      operationId: getAllTxnRequestsToMeFromRemitterWithType
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: rmtr_id
+          description: The remitter id whose transactions are to be retrieved.
+          in: path
+          required: true
+          type: string
+        - name: type 
+          description: The type of transactions to be retrieved.
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnRequest'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /transactions/responses:
+    get:
+      tags:
+        - transactions
+      summary: Get all transaction responses for the calling remitter
+      description: Returns transaction responses intended for the requesting remitter.
+      operationId: getAllResponsesToMe
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnResponse'
+        '404':
+          description: Transaction Response not found 
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+    post:
+      tags:
+        - transactions
+      summary: Post a response to a transaction received for processing.
+      description: This method is called by the target remitter to post a response to the sending receiver after processing a transaction where the response does not need any transaction data to be returned, in which case return a Transaction.
+      operationId: postOneTxnResponse
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: txnAck
           description: The response object to be posted
           in: body
           required: true
@@ -170,22 +328,185 @@ paths:
         '200':
           description: OK
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         default:
           description: Unknown error
           schema:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
+
+  /transactions/responses/remitter/{rmtr_id}:
+    get:
+      tags:
+        - transactions
+      summary: Get all transaction responses from the specified remitter
+      description: Returns all transaction responses from the specified remitter to the calling remitter
+      operationId: getAllTxnResponsesToMeFromRemitter
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnResponse'
+        '404':
+          description: Transaction Ack not found 
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+
+  /transactions/responses/type/{type}:
+    get:
+      tags:
+        - transactions
+      summary: Get all transaction acknowledgement for the requesting remitter
+      description: Returns transaction acknowledgementss intended for the requesting remitter.
+      operationId: getAllAcksToMe
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnResponse'
+        '404':
+          description: Transaction Ack not found 
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+
+  /transactions/responses/remitter/{rmtr_id}/type/{type}:
+    get:
+      tags:
+        - transactions
+      summary: Get all transaction acknowledgement for the requesting remitter
+      description: Returns transaction acknowledgementss intended for the requesting remitter.
+      operationId: getAllAcksToMe
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/TxnResponse'
+        '404':
+          description: Transaction Ack not found 
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+
+  /transactions/analytics/senttxnrequestcounts:
+    get:
+      tags:
+        - transactions
+      summary: Get counts of transactions sent and responses received.
+      description: This method gets a count of all transactions sent and responses received by the calling remitter grouped by remitter and transaction type.
+      operationId: getSentTxnCounts
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: x-access-token
+          description: JWT token received from the login method
+          in: header
+          required: true
+          type: string
+        - name: x-key
+          description: Calling Remitter Id
+          in: header
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/SndrTxnCounts'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /transactions/analytics/rcvdtxnresponsecounts:
+    get:
+      tags:
+        - transactions
+      summary: Get counts of transactions received and responses sent.
+      description: This method gets a count of all transactions received and responses sent by the calling remitter, grouped by remitter and status.
+      operationId: getRcvdTxnCounts
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: x-access-token
+          description: JWT token received from the login method
+          in: header
+          required: true
+          type: string
+        - name: x-key
+          description: Calling Remitter Id
+          in: header
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RcvrTxnCounts'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        '404':
+          description: Transaction not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /fxrates:
     post:
       tags:
         - fxrates
       summary: Post FX rates
-      description: 'This method allows payout agents to post current FX rates by send agent, corridor and product.'
-      operationId: postFXRates
+      description: 'This method allows payout remitters to post current FX rates by send remitter, currency-pair and product.'
+      operationId: postFXRate
       produces:
         - application/json
       parameters:
@@ -199,20 +520,21 @@ paths:
         '200':
           description: OK
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         default:
           description: Unknown error
           schema:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
+
     get:
       tags:
         - fxrates
       summary: Get FX rates
-      description: This method allows send agent to get current FX rates for payout agents.
+      description: This method allows send remitter to get current FX rates for payout remitters.
       operationId: getFXRates
       produces:
         - application/json
@@ -224,21 +546,55 @@ paths:
             items:
               $ref: '#/definitions/FXRate'
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         default:
           description: Unknown error
           schema:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
+
+  /fxrates/remitter/{rmtr_id}:
+    get:
+      tags:
+        - fxrates
+      summary: Get FX rates
+      description: This method allows send remitter to get current FX rates for payout remitters.
+      operationId: getFXRatesByRemitter
+      produces:
+        - application/json
+      parameters:
+        - name: rmtr_id 
+          description: The remitter id for are to be retrieved.
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/FXRate'
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /rules:
     post:
       tags:
         - rules
       summary: Post a rule
-      description: This method allows agents to post rules applicable to transactions they can accept for processing.
+      description: This method allows remitters to post rules applicable to transactions they can accept for processing.
       operationId: postRule
       consumes:
         - application/json
@@ -258,9 +614,9 @@ paths:
             $ref: '#/definitions/Message'
             description: Remit amount limit
         '400':
-          description: Missing parameters
+          description: Mandatory fields
           schema:
-            $ref: '#/definitions/MissingParams'
+            $ref: '#/definitions/MandatoryFields'
         default:
           description: Unknown error
           schema:
@@ -270,8 +626,8 @@ paths:
     get:
       tags:
         - rules
-      summary: Get all rules posted by partner agents
-      description: This method returns rules posted by partner agents.
+      summary: Get all rules posted by partner remitters
+      description: This method returns rules posted by partner remitters.
       operationId: getAllRules
       consumes:
         - application/json
@@ -291,21 +647,21 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-        
-  /rules/{agentId}:
+
+  /rules/{rmtr_id}:
     get:
       tags:
         - rules
-      summary: Get all rules posted by agent with agentId
-      description: This method returns rules posted by the identified partner agent.
-      operationId: getRuleByAgent
+      summary: Get all rules posted by remitter with rmtr_id
+      description: This method returns rules posted by the specified remitter.
+      operationId: getRulesByremitter
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
-        - name: agentId
-          description: Agent Id for which rules to be fetched
+        - name: rmtr_id
+          description: remitter Id for which rules to be fetched
           in: path
           required: true
           type: string
@@ -323,19 +679,54 @@ paths:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-        
-  /agents/{agentId}:
-    get:
+
+  /remitters:
+    post:
       tags:
-        - agents
-      summary: Find agent by id
-      description: Returns the agent details.
-      operationId: getAgentById
+        - remitters
+      summary: Post remitter details
+      description: This method allows remitters to post their details, including products, currencies and locations.
+      operationId: postRemitter
+      consumes:
+        - application/json
       produces:
         - application/json
       parameters:
-        - name: agentId
-          description: agentId of the agent whose details are requested
+        - name: remitter
+          description: The remitter definition.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Remitter'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+            description: Remitter details posted successfully
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /remitters/{rmtr_id}:
+    get:
+      tags:
+        - remitters
+      summary: Get Remitter details.
+      description: This method returns the remitter details for the specified partner.
+      operationId: getRemitterById
+      produces:
+        - application/json
+      parameters:
+        - name: rmtr_id
+          description: Remitter Id of the remitter whose details are requested
           in: path
           required: true
           type: string
@@ -343,50 +734,84 @@ paths:
         '200':
           description: OK
           schema:
-            $ref: '#/definitions/Agent'
+            $ref: '#/definitions/Remitter'
         '404':
-          description: Agent not found
+          description: remitter not found
         default:
           description: Unknown error
           schema:
             $ref: '#/definitions/Error'
       security:
         - api_key: []
-        
+
+  /uuid:
+    get:
+      tags:
+        - uuid
+      summary: Get a universally unique identifier
+      description: This method returns a universally unique identifier that should be included in the metadata of each message.
+      operationId: getUUID
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/UUID'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
 definitions:
-  Transaction:
+  TxnRequest:
     required:
-      - sndr_rmtr_id
-      - rcvr_rmtr_id
-      - posted_on
-      - status
-      - txn_data
+      - metadata
+      - data
     properties:
-      sndr_rmtr_id:
-        type: string
-        description: Sender Remitter Id issued by RemitBroker (unencryted).
-      rcvr_rmtr_id:
-        type: string
-        description: Receiver Remitter Id issued by RemitBroker (unencrypted).
-      posted_on:
-        type: string
-        format: date-time
-        description: 'Date and Time this transaction was posted to the RB platform.'
-      status:
-        $ref: '#/definitions/Status'
-        description: Transaction status (unencrypted).
-      txn_data:
+      metadata:
+        $ref: '#/definitions/Metadata'
+        description: The metadata required for routing and tracking (unencrypted).
+      data:
         $ref: '#/definitions/TransactionData'
         description: Transaction data (encrypted).
 
+  Metadata:
+    required:
+      - uuid
+      - from_rmtr_id
+      - to_rmtr_id
+      - message_type
+      - posted_on
+    properties:
+      uuid:
+        type: string
+        description: Universally unique identifier. Needs a call to GET /uuid
+      from_rmtr_id:
+        type: string
+        description: Id of remitter sending this message.
+      to_rmtr_id:
+        type: string
+        description: Id of remitter who should receive this message. If 0, it is a broadcast message accessible by all partner receiving remitters. Never zero for transactions, may be zero for other messages.
+      message_type:
+        type: string
+        description: Message type code (REQ_PAY=Request to Pay,REQ_MOD=Request to Pay Modified,REQ_CAN=Request to Cancel,CNF_PD=Confirmed Paid Response,CNF_CAN=Confirmed Cancelled Response,REJ_REQ=Request Rejected Response, FXR_NEW=New FX Rate,REM_DET=Remitter Details)
+      posted_on:
+        type: number
+        description: Date and Time this message was posted to the RB platform.
+
   TransactionData:
     required:
+      - sndr_rmtr_id
+      - rcvr_rmtr_id
       - sndr_txn_num
       - bene_code
       - sndr_cntry_code 
       - rcvr_cntry_code
+      - status
       - created_on
-      - chng_req_on
       - sender
       - beneficiary
       - product
@@ -396,140 +821,256 @@ definitions:
       - fees
       - taxes
       - discounts
-
     properties:
+      sndr_rmtr_id:
+        type: string
+        description: Sender Remitter Id issued by RemitBroker. Mandatory.
+      rcvr_rmtr_id:
+        type: string
+        description: Receiver Remitter Id issued by RemitBroker. Mandatory.
       sndr_txn_num:
         type: string
-        description: Sending remitter transaction number. 
+        description: Sending remitter transaction number. Mandatory.
       rcvr_txn_num:
         type: string
-        description: Receiving remitter transaction number. 
+        description: Receiving remitter transaction number. Optional.
       bene_code:
         type: string
-        description: Code issued to beneficiary to be used when collecting money.
+        description: Code issued to beneficiary to be used when collecting money. Mandatory.
       sndr_cntry_code:
         type: string
-        description: Sending country ISO3 country code.
+        description: Sending country ISO3 country code. Mandatory.
       rcvr_cntry_code:
         type: string
-        description: Receiving country ISO3 country code.
+        description: Receiving country ISO3 country code. Mandatory.
+      status:
+        $ref: '#/definitions/Status'
+        description: Transaction status. Mandatory.
       created_on:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      chng_req_on:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+        type: number
+        description: Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339. Mandatory.
       sender:
         $ref: '#/definitions/Customer'
-        description: Details of sender.
+        description: Details of sender. Mandatory.
       beneficiary:
         $ref: '#/definitions/Customer'
-        description: Details of beneficiary.
+        description: Details of beneficiary. Mandatory.
       product:
         $ref: '#/definitions/Product'
         description: Product in transaction
       send_amnt:
         $ref: '#/definitions/Money'
-        description: Currency and amount to be sent.
+        description: Currency and amount to be sent. Mandatory.
       bene_amnt:
         $ref: '#/definitions/Money'
-        description: Currency and amount that will be received.
+        description: Currency and amount that will be received. Mandatory.
       fxrate:
         type: number
         format: double
-        description: FX rate.
+        description: FX rate. Mandatory.
       fees:
         type: array
         items:
             $ref: '#/definitions/Charge'
-        description: Multiple Fee definitions possible
+        description: Multiple Fee definitions possible. Mandatory.
       taxes:
         type: array
         items:
             $ref: '#/definitions/Charge'
-        description: Multiple Taxes definitions possible
+        description: Multiple Taxes definitions possible. Mandatory.
       discounts:
         type: array
         items:
             $ref: '#/definitions/Charge'
-        description: Multiple Discount definitions possible.
+        description: Multiple Discount definitions possible. Mandatory.
       bene_account:
         $ref: '#/definitions/Account'
-        description: Beneficiary bank or other account details.
+        description: Beneficiary bank or other account details. Optional.
       purpose:
         type: string
-        description:  Purpose of remittance.
-      msg:
-        type: string
-        description: Optional message between remitters. 
-
-  TxnResponse:
-    required:
-      - txnId
-      - status
-      - statusDateTime
-      - message
-    properties:
-      txnId:
-        type: string
-        description: Universal transaction id globally unique.
-      payoutDateTime:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction payout in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      amendDateTime:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction amend in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      cancelDateTime:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction cancel in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
-      txnPayoutAgentRefNum:
-        type: string
-        description: The payout agent reference number.
-      payoutAgentId:
-        type: string
-        description: Receive agent uid populated when a transaction is processed. May be populated when created when intended for a particualr receive agent only.
-      status:
-        $ref: '#/definitions/Status'
-        description: Transaction status.
-      statusDateTime:
-        type: string
-        format: date-time
-        description: 'Date and Time of transaction status in UTC (2016-01-01T14:20:50Z) in the format defined in RFC3339.'
+        description:  Purpose of remittance. Mandatory.
       message:
         $ref: '#/definitions/Message'
-        description: A message object to pass information from payout agent to sending agent especially if a request is rejected.
-      missingParameters:
-        $ref: '#/definitions/MissingParams'
-        description: 'List of missing parameters required for completion of transaction. These are transaction level missing parameters, must use the same parameter names as the model specifications. While the response to the API call returns method level missing parameters, which is usually only the payload object.'
+        description: A message object to pass information from sending remitter to receiving remitter. Optional.
+
+  TransactionResponse:
+    required:
+      - request_metadata
+      - response_metadata
+    properties:
+      request_metadata:
+        $ref: '#/definitions/Metadata'
+        description: The transaction metadata required for routing and tracking.
+      response_metadata:
+        $ref: '#/definitions/Metadata'
+        description: The transaction metadata required for routing and tracking.
+      beneficiary:
+        $ref: '#/definitions/Customer'
+        description: Details of beneficiary. Mandatory for Paid transactions.
+      message:
+        $ref: '#/definitions/Message'
+        description: A message object to pass information from sending remitter to receiving remitter.
+
+  MessageAck:
+    required:
+      - request_metadata
+      - response_metadata
+    properties:
+      request_metadata:
+        $ref: '#/definitions/Metadata'
+        description: The message metadata required for routing and tracking.
+      response_metadata:
+        $ref: '#/definitions/Metadata'
+        description: The message metadata required for routing and tracking.
+      txn_rcvd_on:
+        type: number
+        description: Date and Time this transaction was received by the target remitter.
+      message:
+        $ref: '#/definitions/Message'
+        description: A message object to pass information from sending remitter to receiving remitter.
+
+
+  SndrTxnCounts:
+    required:
+      - sndr_rmtr_id
+      - rcvr_rmtr_id
+      - new_count
+      - mod_count
+      - can_count
+      - ack_count
+      - response_count
+      - paid_count
+    properties:
+      sndr_rmtr_id:
+        type: string
+        description: The sending remitter id.
+      rcvr_rmtr_id:
+        type: string
+        description: The receiving remitter id.
+      new_sent_count:
+        type: number
+        format: double
+        description: Count of new transactions posted by sndr_rmtr_id to rcvr_rmtr_id.
+      mod_sent_count:
+        type: number
+        format: double
+        description: Count of modification request transactions posted by sndr_rmtr_id to rcvr_rmtr_id.
+      can_sent_count:
+        type: number
+        format: double
+        description: Count of cancellation request transactions posted by sndr_rmtr_id to rcvr_rmtr_id.
+      ack_rcvd_count:
+        type: number
+        format: double
+        description: Count of transaction acks received by sndr_rmtr_id from rcvr_rmtr_id.
+      rej_rcvd_count:
+        type: number
+        format: double
+        description: Count of modification and cancel request rejects received by sndr_rmtr_id from rcvr_rmtr_id.
+      paid_rcvd_count:
+        type: number
+        format: double
+        description: Count of transaction paid confirmations received by sndr_rcvr_id from rcvr_rmtr_id.
+
+  RcvrTxnCounts:
+    required:
+      - rcvr_rmtr_id
+      - sndr_rmtr_id
+      - new_count
+      - mod_count
+      - can_count
+      - ack_count
+      - response_count
+      - paid_count
+    properties:
+      rcvr_rmtr_id:
+        type: string
+        description: The receiving remitter id.
+      sndr_rmtr_id:
+        type: string
+        description: The sending remitter id.
+      new_rcvd_count:
+        type: number
+        format: double
+        description: Count of new transactions received by rcvr_rmtr_id from sndr_rmtr_id.
+      mod_rcvd_count:
+        type: number
+        format: double
+        description: Count of modification request transactions received by rcvr_rmtr_id from sndr_rmtr_id.
+      can_rcvd_count:
+        type: number
+        format: double
+        description: Count of cancellation request transactions received by rcvr_rmtr_id from sndr_rmtr_id.
+      ack_sent_count:
+        type: number
+        format: double
+        description: Count of transaction acks sent by rcvr_rmtr_id to sndr_rmtr_id.
+      rej_sent_count:
+        type: number
+        format: double
+        description: Count of modification and cancel request rejects sent by rcvr_rmtr_id to sndr_rmtr_id.
+      paid_sent_count:
+        type: number
+        format: double
+        description: Count of transaction paid confirmations sent by rcvr_rmtr_id to sndr_rmtr_id.
+
   FXRate:
     required:
-      - corridor
+      - metadata
+      - data
+    properties:
+      metadata:
+        $ref: '#/definitions/Metadata'
+        description: The metadata required for routing and tracking (unencrypted).
+      data:
+        $ref: '#/definitions/FXRateData'
+        description: Transaction data (encrypted).
+
+  FXRateData:
+    required:
+      - sndr_rmtr_id
+      - rcvr_rmtr_id
+      - sndr_country
+      - sndr_currency
+      - rcvr_country
+      - rcvr_currency
       - product
       - rate
     properties:
-      corridor:
-        $ref: '#/definitions/Corridor'
-        description: Product in transaction
+      sndr_rmtr_id:
+        type: string
+        description: Sender Remitter Id for which this Fx Rate is applicable. If 0, it is applicable for all sending remitters.
+      rcvr_rmtr_id:
+        type: string
+        description: Receiver Remitter Id which is publishing this FX rate.
+      sndr_country:
+        type: string
+        description: Send country (ISO3 code)
+      sndr_currency:
+        type: string
+        description: Send currency (ISO3 code)
+      rcvr_country:
+        type: string
+        description: Payout country (ISO3 code)
+      rcvr_currency:
+        type: string
+        description: Payout currency (ISO3 code)
       product:
         $ref: '#/definitions/Product'
         description: Product in transaction
-      rate:
+      fxrate:
         type: number
         format: double
         description: FX rate.
-      positivemargin:
+      positive_margin:
         type: number
         format: double
         description: Permitted positive margin variance.
-      negativemargin:
+      negative_margin:
         type: number
         format: double
         description: Permitted negative margin variance.
+
   Product:
     required:
       - code
@@ -541,26 +1082,28 @@ definitions:
       desc:
         type: string
         description: Product description
+
   Corridor:
-    description: Comprises of origin and destination country-currency pairs.
+    description: Comprises of origin and destination country-currency pairs. DEPRECATED
     required:
-      - send_cntry_code
-      - send_currency_code
-      - recv_cntry_code
-      - recv_currency_code
+      - sndr_country
+      - sndr_currency
+      - rcvr_country
+      - rcvr_currency
     properties:
-      send_cntry_code:
+      sndr_country:
         type: string
         description: Send country (ISO3 code)
-      send_currency_code:
+      sndr_currency:
         type: string
         description: Send currency (ISO3 code)
-      recv_cntry_code:
+      rcvr_country:
         type: string
         description: Payout country (ISO3 code)
-      recv_currency_code:
+      rcvr_currency:
         type: string
         description: Payout currency (ISO3 code)
+
   Money:
     required:
       - currency
@@ -573,6 +1116,7 @@ definitions:
         type: number
         format: double
         description: Amount
+
   Charge:
     required:
       - name
@@ -584,7 +1128,8 @@ definitions:
       value:
         $ref: '#/definitions/Money'
         description: Value of the charge, including currency and amount 
-  BankAccount:
+
+  Account:
     required:
       - number
       - inst_name
@@ -607,55 +1152,166 @@ definitions:
       inst_code:
         type: string
         description: Bank or institution code as per receiving country format.
-      inst_address:
-        $ref: '#/definitions/Address'
-        description: Bank or  address.
-      branchCode:
-        type: string
-        description: Branch code as per receiving country format.
-      branchName:
+      branch_name:
         type: string
         description: Branch name.
-      branchAddress:
+      branch_code:
+        type: string
+        description: Branch code as per receiving country format.
+      branch_address:
         $ref: '#/definitions/Address'
         description: Branch address.
-  Agent:
+
+  Remitter:
     required:
-      - agentId
-      - legalName
-      - tradingName
-      - address
-      - phoneNumber
-      - emailId
-      - service
-      - products
+      - metadata
+      - data
     properties:
-      agentId:
+      metadata:
+        $ref: '#/definitions/Metadata'
+        description: The metadata required for routing and tracking (unencrypted).
+      data:
+        $ref: '#/definitions/RemitterData'
+        description: Transaction data (encrypted).
+
+  RemitterData:
+    required:
+      - rmtr_id
+      - legal_name
+      - trading_name
+      - services
+      - products
+      - country
+      - currencies
+      - locations
+    properties:
+      rmtr_id:
         type: string
-        description: An agent identifier unique across the platform
-      legalName:
+        description: A remitter identifier unique across the platform.
+      legal_name:
         type: string
-        description: 'Legal name of the agent, generally not displayed to the customer'
-      tradingName:
+        description: Legal name of the remitter, generally not displayed to the customer.
+      trading_name:
         type: string
-        description: 'Trading name of the agent, generally displayed to the cutomer'
-      address:
-        $ref: '#/definitions/Address'
-        description: Product in transaction
-      phoneNumber:
-        type: string
-        description: Complete phone number including country and area codes
-      emailId:
-        type: string
-        description: "Agent's email id for customer suport requests"
-      service:
-        type: string
-        description: 'Service code, only one of Remit or Receive. And agent that both remits and receives will need to have two unique entities on the platform'
+        description: Trading name of the remitter, generally displayed to the customer.
+      services:
+        type: number
+        description: Services as a bit array, 1(01)=Send,2(10)=Receive,3(11)=Send and Receive.
       products:
         type: array
         items:
           type: string
         description: Array of product codes for products serviced
+      country:
+        type: string
+        description: Remitter country ISO3 Code
+      currencies:
+        type: array
+        items:
+          type: string
+        description: Array of currency ISO3 codes that the remitter transacts in.
+      locations:
+        type: array
+        items:
+          $ref: '#/definitions/Location'
+        description: Remitter retail locations for customer reference
+
+  Rule:
+    required:
+      - metadata
+      - data
+    properties:
+      metadata:
+        $ref: '#/definitions/Metadata'
+        description: The metadata required for routing and tracking (unencrypted).
+      data:
+        $ref: '#/definitions/RuleData'
+        description: Rule data (encrypted).
+
+  RuleData:
+    description: The rule object model will consist of multiple types of rules typically defined by receiver remitters for send remitters to apply when capturing a transaction.
+    required:
+      - rmtr_id
+      - sndr_rmtr_id
+      - rule_type
+      - sndr_country
+      - sndr_currency
+      - rcvr_country
+      - rcvr_currency
+      - product
+      - max_value
+      - mandatory_fields
+    properties:
+      sndr_rmtr_id:
+        type: string
+        description: Id of remitter for which this rule is applicable. 0 implies the rule is applicable for all remitters.
+      rcvr_rmtr_id:
+        type: string
+        description: Id of receiving remitter posting this rule.
+      rule_type:
+        type: string
+        description: Mandatory data values, amount limits
+      sndr_country: 
+        type: string
+        description: Send country (ISO3 code). Null or empty implies all send countries.
+      sndr_currency: 
+        type: string
+        description: Send currency (ISO3 code). Null or empty implies all send currencies.
+      rcvr_country:
+        type: string
+        description: Payout country (ISO3 code). Null or empty implies all payout countries.
+      rcvr_currency:
+        type: string
+        description: Payout currency (ISO3 code). Null or empty implies all payout currencies.
+      product:
+        $ref: '#/definitions/Product'
+        description: Product for which the rule applies. Null or empty implies that the rule applies for all products.
+      max_value:
+        $ref: '#/definitions/Money'
+        description: Maximum value of transaction permitted.
+      mandatory_fields:
+        $ref: '#/definitions/MandatoryFields'
+        description: Mandatory fields for transactions.
+
+  Location:
+    required:
+      - name
+      - address
+    properties:
+      name:
+        type: string
+        description: Name of the retail location
+      address:
+        $ref: '#/definitions/Address'
+        description: Address of the retail location
+      operating_hours:
+        type: array
+        items:
+            $ref: '#/definitions/OperatingHours'
+        description: Operating hours by day
+      email:
+        type: string
+        description: Email Id of the location
+      phone:
+        type: string
+        description: Complete phone number including country and area codes for the location
+
+  OperatingHours:
+    required:
+      - day_of_week
+      - start_time
+      - end_time
+    properties:
+      day_of_week:
+        type: string
+        description: Day of the week (Monday, Tuesday...)
+      start_time:
+        type: string
+        description: Time in HH:MM format (24-hour format), 00:00 in both start and end times indicates closed
+      end_time:
+        type: string
+        description: Time in HH:MM format (24-hour format), 00:00 in both start and end times indicates closed
+
   Customer:
     required:
       - name
@@ -681,8 +1337,7 @@ definitions:
         type: string
         description: Complete phone number including country and area codes
       dob:
-        type: string
-        format: date
+        type: number
         description: Date of birth
       nationality:
         type: string
@@ -695,6 +1350,31 @@ definitions:
         items:
           $ref: '#/definitions/KeyValuePair'
         description:  Open key value pairs
+
+  Name:
+    required:
+      - first
+      - last
+    properties:
+      title:
+        type: string
+        description: Title if required (Mr.,Mrs.,Ms.,Dr.)
+      full:
+        type: string
+        description: Full name with all parts as on the ID presented.
+      first:
+        type: string
+        description: First Name (usually only one part)
+      first_other:
+        type: string
+        description: Any other first name parts.
+      last:
+        type: string
+        description: Last name (usually only one part)
+      last_other:
+        type: string
+        description: Any other last name parts.
+
   Address:
     required:
       - street
@@ -721,6 +1401,7 @@ definitions:
       country:
         type: string
         description: Address country (ISO3 code).
+
   IdDoc:
     required:
       - number
@@ -735,74 +1416,71 @@ definitions:
         type: string
         description: Id type
       expires_on:
-        type: string
-        format: date
+        type: number
         description: Id expiry date
       country:
         type: string
         description: Issuing country (ISO3 code)
-  Rule:
-    description: The rule object model will consist of multiple types of rules typically defined by payout agents for send agents to apply when capturing a transaction.
-    required:
-      - definingAgentId
-      - ruleType
-    properties:
-      definingAgentId:
+      image:
         type: string
-        description: Id of agent posting this rule.
-      ruleType:
-        type: string
-        description: 'Applicable to Send or Payout. (S=Send side rule, P=Payout side rule).'
-      appliesToAgentId:
-        type: string
-        description: Id of agent for which this rule is applicable. Null or empty implies the rule is applicable for all agents.
-      product:
-        $ref: '#/definitions/Product'
-        description: Product for which the rule applies. Null or empty implies that the rule applies for all products.
-      sendCountryISO3Code:
-        type: string
-        description: Send country (ISO3 code). Null or empty implies all send countries.
-      sendCurrencyISO3Code:
-        type: string
-        description: Send currency (ISO3 code). Null or empty implies all send currencies.
-      payoutCountryISO3Code:
-        type: string
-        description: Payout country (ISO3 code). Null or empty implies all payout countries.
-      payoutCurrencyISO3Code:
-        type: string
-        description: Payout currency (ISO3 code). Null or empty implies all payout currencies.
+        description: base64 encoded version of a scanned image of the id
+
 
   Status:
     required:
-      - status_code
-      - status_desc
+      - code
+      - notes
+      - changed_on
     properties:
-      status_code:
+      code:
         type: string
-        description: 3-character universal status code.
-      status_desc:
+        description: Status code (NEW-New/MOD-Modified/CAN-Cancelled/PD-Paid/REJ-Rejected)
+      notes:
         type: string
-        description: Status description.
-  MissingParams:
+        description: Status notes.
+      changed_on:
+        type: number
+        description: Status as on date.
+
+  MandatoryFields:
     properties:
-      params:
+      fields:
         type: array
         items:
           type: string
+
   Message:
     required:
-      - messageCode
-      - messageDesc
+      - type
+      - body
     properties:
-      messageCode:
+      type:
         type: string
-        description: '3-character message code (REQ_ACK=Received but not confirmed, REQ_OK=Received and confirmed accepted, REQ_REJ=Received but rejected with reasons in message body)'
-      messageDesc:
-        type: string
-        description: Message description
-      messageBody:
+        description: 3-character message code (INF=Information, ERR=Error, WAR=Warning).
+      body:
         type: string
         description: Detailed message body
+
+  UUID:
+    required:
+      - uuid
+    properties:
+      uuid:
+        type: string
+        description: Universally Unique Id to be used when posting a message
+
+  KeyValuePair:
+    required:
+      - key
+      - value
+    properties:
+      key:
+        type: string
+        description: Attribute identifier.
+      value:
+        type: string
+        description: Attribute value.
+
   Error:
     required:
       - error_code
@@ -817,14 +1495,3 @@ definitions:
       error_body:
         type: string
         description: Detailed error information.
-  KeyValuePair:
-    required:
-      - key
-      - value
-    properties:
-      key:
-        type: string
-        description: Attribute identifier.
-      value:
-        type: string
-        description: Attribute value.
