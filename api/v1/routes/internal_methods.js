@@ -53,15 +53,12 @@ var internal = {
                         ' AND partner_id = ' + mysql.escape(rmtr_id_1) + ' AND status = 1)' +
                         ' AS record_exists';
 
-        console.log(query_str);
-
         con.query(query_str, function(err, rows){
             if(err){
                 console.log('Error executing query\n');
                 return false;
             }
 
-            console.log("resultset = "+rows[0].record_exists);
             if(rows[0].record_exists == 1){
                 return true;
             }else{

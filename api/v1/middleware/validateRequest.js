@@ -11,7 +11,6 @@ module.exports = function(req, res, next) {
 
     //Key (the Remitter Id) can be received as a POST or GET parameter named x_key or as a HEADER parameter named x-key
     var key = (req.body && req.body.x_key) || (req.query && req.query.x_key) || req.headers['x-key'];
-console.log('x-key' + JSON.stringify(req.headers));
     //Token can be received as POST or GET parameter named x_access_token or as a HEADER parameter named x-access-token 
     var token = (req.body && req.body.x_access_token) || (req.query && req.query.x_access_token) || req.headers['x-access-token'];
 
@@ -31,7 +30,6 @@ console.log('x-key' + JSON.stringify(req.headers));
                             return;
                         } else{
                             //else, if token is valid
-                            console.log(payload.remitter_id);
                             if ((req.url.indexOf('/v1/') >= 0)) {
                                 next(); // To move to next middleware
                             } else { //if specific paths like /admin need additional authorization

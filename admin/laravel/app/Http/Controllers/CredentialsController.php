@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\MessageBag;
 use Illuminate\Database\QueryException;
 use App\Http\Requests;
@@ -32,13 +33,73 @@ class CredentialsController extends Controller
     public function showChngMstrPwd(Request $request){
         //Gets the data set in session by the login process into an array
         $remitter = $request->session()->get('remitter'); //gets the remitter object
-        Log::info($remitter->remitter_id);
 
         //Reflash superauth flag as it would be needed again for the Confirm Change Password function
         $request->session()->reflash();
 
         return view('credentials_chngmstrpwd')->with('remitter', $remitter);
     }
+
+    //
+    // Function to display generate or upload public key view
+    // 
+    public function showNewKeyPair(Request $request){
+        //Gets the data set in session by the login process into an array
+        $remitter = $request->session()->get('remitter'); //gets the remitter object
+
+        //Reflash superauth flag as it would be needed again for the Confirm Change Password function
+        $request->session()->reflash();
+
+        return view('credentials_newkeypair')->with('remitter', $remitter);
+    }
+
+    //
+    // Function to upload public key file
+    // 
+    public function uploadPubKeyFile(Request $request){
+      
+        //Check if superauth flag in session is set to true
+        if(!$request->session()->get('superauth')){
+            return response()->json([
+                //'success' => false, //Not required and generic iteration displays this
+                'message' => 'Invalid credentials'
+            ], 403);
+        }
+        
+        //User is superauth, continue 
+        //Gets the data set in session by the login process into an array
+        $remitter = $request->session()->get('remitter'); //gets the remitter object
+
+        //Upload the public key file
+        //disk public was changed to point to the laravel/public folder but the server does not have write permissions
+        //TODO: Where to upload downloadable files?
+        try{
+            if($request->file('pubkeyfile')->isValid()){
+                $ext = $request->file('pubkeyfile')->getClientOriginalExtension();
+                $filename = $remitter->remitter_id.'_pubkey.'.$ext;
+                //Storage::disk('local')->put($request->file('pubkeyfile'), 'Contents');
+                //Storage::disk('local')->put('file.txt', 'Contents');
+                Storage::disk('public')->put($filename,
+                             file_get_contents($request->file('pubkeyfile'))
+                            );
+
+                //return success view which is a generic view to display success messages
+                return view('success')->with('remitter', $remitter)  
+                                      ->with('message', 'Public key file uploaded successfully.');
+            }else{
+                //initiate MessageBag
+                $errors = new MessageBag(['upload_failed' => ['File Upload failed.']]);
+                return redirect()->back()->withErrors($errors);
+            }
+        } catch(QueryException $ex){
+            // Note any method of class PDOException can be called on $ex
+            dd($ex->getMessage());//dd = Laravel's Dump cwandor Die
+             
+            //initiate MessageBag
+            $errors = new MessageBag(['upload_failed' => ['File Upload failed.']]);
+            return redirect()->back()->withErrors($errors);
+        }
+    }     
 
     //
     // Function to activate/save new API Key
@@ -59,9 +120,9 @@ class CredentialsController extends Controller
 
         //Update the remitter record with the new api key
         try{
-            DB::table('remitters')->
-            where('remitter_id', '=', $remitter->remitter_id)->
-            update(['api_key' => DB::raw('new_api_key'),
+            DB::table('remitters')
+            ->where('remitter_id', '=', $remitter->remitter_id)
+            ->update(['api_key' => DB::raw('new_api_key'),
                     'new_api_key' => null
                    ]);
         } catch(QueryException $ex){
@@ -90,14 +151,6 @@ class CredentialsController extends Controller
             //initiate MessageBag
             $errors = new MessageBag(['login_failed' => ['Invalid credentials.']]);
             return redirect()->back()->withErrors($errors);
-
-            //Required if ajax calls method
-            /*
-            return response()->json([
-                //'success' => false, //Not required and generic iteration displays this
-                'message' => 'Invalid credentials'
-            ], 403);
-             */
         }
 
         //Gets the data set in session by the login process into an array
@@ -169,14 +222,6 @@ class CredentialsController extends Controller
             //initiate MessageBag
             $errors = new MessageBag(['login_failed' => ['Invalid credentials.']]);
             return redirect()->back()->withErrors($errors);
-
-            //Required if ajax calls method
-            /*
-            return response()->json([
-                //'success' => false, //Not required and generic iteration displays this
-                'message' => 'Invalid credentials'
-            ], 403);
-             */
         }
         
         //Second check if Remitter Id, Master Password and Current API Key match values in the database
@@ -198,14 +243,6 @@ class CredentialsController extends Controller
             //initiate MessageBag
             $errors = new MessageBag(['login_failed' => ['Invalid credentials.']]);
             return redirect()->back()->withErrors($errors);
-
-            //Required if ajax calls method
-            /*
-            return response()->json([
-                //'success' => false, //Not required and generic iteration displays this
-                'message' => 'Credentials not authorised'
-            ], 403);
-             */
         }else{
 
             //Check which submit button was clicked and redirect accordingly
@@ -255,14 +292,6 @@ class CredentialsController extends Controller
                     //Generate New API Key and redirect to credentials_newapikey view
                     return view('credentials_newapikey')->with('remitter', $remitter)
                                                         ->with('new_api_key',$new_api_key) ;
-                    //Required if ajax calls method
-                    /*
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'OK',
-                        'payload' => ['newapikey' => $new_api_key],
-                    ], 200);
-                     */
                 }
             }
 
@@ -273,13 +302,12 @@ class CredentialsController extends Controller
                 return redirect('credentials/chngmstrpwd');
             }
 
-            /* Return reponse if ajax call */
-            /*
-            return response()->json([
-                'success' => true,
-                'message' => 'OK',
-            ], 200);
-             */
+            if($request->submit == "newkeypair"){
+                $request->session()->flash('superauth', true);
+                //Redirect to credentials_chngmstrpwd view
+                //return view('credentials_chngmstrpwd')->with('remitter', $remitter);
+                return redirect('credentials/newkeypair');
+            }
         }
     }
 

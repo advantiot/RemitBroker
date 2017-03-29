@@ -47,12 +47,14 @@ class LoginController extends Controller
             $remitter_id = Auth::user()->remitter_id;
 
             // Calling first() will return a single object rather than an aray of objects with get()
-            $remitter = DB::table('remitters')->
-                                select('remitter_id', 'name', 'country_code', 'service_type')->
-                                where([
+            $remitter = DB::table('remitters')
+                                ->join('country_currency', 'remitters.country_code', '=', 'country_currency.country_code')
+                                ->select('remitters.remitter_id', 'remitters.name', 'remitters.country_code', 'remitters.service_type','country_currency.currency_code')
+                                ->where([
                                     ['remitter_id', '=', $remitter_id],
                                     ['status', '=', 1] //status = Active
-                                ])->first();
+                                    ])
+                                ->first();
 
 
             // If a remitter was found save the remitter object to session

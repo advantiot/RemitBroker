@@ -1,14 +1,18 @@
 /*
  * RemitBroker API
  * [server_home]/models/txnresponse_model.js
- * This file will hold the schema for transcation responses
+ * This file will hold the schema for transaction responses
  * Mongoose automatically creates a collection with the plural version of your model name.
  * Reference: https://scotch.io/tutorials/using-mongoosejs-in-node-js-and-mongodb-applications
  *
  * Author: RemitBroker
  * Created On: 10-Nov-2016
  * Last Updated By: RemitBroker
- * Last Updated On: 10-Nov-16
+ * Last Updated On: 16-Feb-17
+ *
+ * Changes:
+ * Redefined valid values for response message type:
+ * ACK_NEWTXN, RES_CNFPD, ACK_CNFPD, RES_REJNEW, ACK_REJNEW, ACK_MODTXN, RES_REJMOD, ACK_REJMOD, ACK_CANTXN, RES_CNFCAN, ACK_CNFCAN, RES_REJCAN, ACK_REJCAN   
  */
 
 var mongoose = require('mongoose');
@@ -21,7 +25,7 @@ var txnresponse_schema   = new Schema({
         uuid: {type:String},
         from_rmtr_id: {type:String},
         to_rmtr_id: {type:String},
-        message_type: {type:String},
+        txnrequest_type: {type:String},
         posted_on: {type:String}, //This message posted on
     },
     //Response metadata
@@ -30,7 +34,7 @@ var txnresponse_schema   = new Schema({
         uuid: {type:String},
         from_rmtr_id: {type:String},
         to_rmtr_id: {type:String},
-        message_type: {type:String}, //Message type code (ACK_REQ=Request Acknowledgement,CNF_PD=Confirmed Paid Response,CNF_CAN=Confirmed Cancelled Response,REJ_REQ=Request Rejected Response)
+        txnresponse_type: {type:String}, //See Changes section for valid values
         posted_on: {type:String}, //This message posted on
     },
     //Encrypted payload, beneficiary detils needed for CNF_PD to send updated information such as beneficiary id details 
@@ -65,18 +69,21 @@ var txnresponse_schema   = new Schema({
                 phone: {type:String},
                 dob: {type:String},
                 nationality: {type:String}, //ISO3 code
+                gender: {type:String},
+                occupation: {type:String},
 
-                id_doc: {
-                        name_on_id: {type:String}, //Optional, if different from beneficiary name
-                        number: {type:String},
-                        type: {type:String},
-                        expires_on: {type:String},
-                        country: {type:String}, //ISO3 code
-                        image: {type:String}, //Base64 encoded string
-                },
+                id_doc: [{
+                            number: {type:String},
+                            type: {type:String},
+                            issued_on: {type:String},
+                            expires_on: {type:String},
+                            state: {type:String},
+                            country: {type:String}, //ISO3 code
+                            image: {type:String}, //Base64 encoded string
+                        }],
 
                 //Other info can have one or more of the following, or any other information negotiated between remitters:
-                // Source of funds, Gender, Occupation
+                // Source of funds
                 other_info: [{
                                 name:String, 
                                 value:String,

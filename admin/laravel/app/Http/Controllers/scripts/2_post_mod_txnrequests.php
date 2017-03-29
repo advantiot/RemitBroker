@@ -1,11 +1,8 @@
 <?php
 //
-// This is a standalone program to post a series of NEW transactions with randomly varying values within a meaningful range
-// File name starts with 1 to indicate sequence in which scripts should be executed
-// Subsets of New will have a Confirmed Paid or Rejected response from receiver to sender
-// Subsets of Modify will have a Confirmed Paid or Rejected response from receiver to sender
-// Subsets of Cancel will have a Confirmed Cancelled or Rejected response from receiver to sender
-// The program will log every transaction got to logs/[sndr_rmtr_id]_post_new_txns_log.csv
+// This program posts a series of Modificatoin Requests for a subset of new transactions previously posted
+// File execution sequence:2
+// The program will log every transaction got to logs/[sndr_rmtr_id]_post_mod_txnrequests_log.csv
 
 require '../vendor/autoload.php';
 require '../models/common_model.php';
@@ -23,9 +20,9 @@ define("OPENSSL_PVT_KEY","2");
 $sndr_rmtr_ids= ['516712','443444','475246','164831','505113'];
 $rcvr_rmtr_ids = ['642247','506863','922196','760613','594629',505113];
 
-$rmtr_api_keys['164831']='0033505a-2b3d-45cb-9a8b-4bb309463731';
+$rmtr_api_keys['164831']='b579b5c5-771f-4a50-8d2c-668b17350dea';
 $rmtr_api_keys['443444']='3786ea26-014c-4d87-9b79-76b16d80c634';
-$rmtr_api_keys['475246']='b32ca72b-ace3-41f6-9cc4-b8f5fcc8eca6';
+$rmtr_api_keys['475246']='691365c7-6e94-4709-9c21-759c01ba83cf';
 $rmtr_api_keys['505113']='aa8263b5-4437-4136-8a49-128b0d2e20be';
 $rmtr_api_keys['506863']='be9b5d06-b0c9-47e8-ba50-66cde4382e9b';
 $rmtr_api_keys['516712']='7e7a19ac-1d92-4d9b-9c4d-75ffde9c3bbb';
@@ -84,7 +81,7 @@ $product_codes = ['CCP','CCP','CAD','CBP','CMO','ACP','ACD','AAD','ABP','AMO','D
 //$txn_types = ['REQ_NEW','REQ_MOD','REQ_CAN','CNF_PAY','CNF_CAN','REQ_REJ'];
 //$txn_status_codes = ['NEW','MOD','CAN','PD','REJ'];
 
-$message_type = 'REQ_NEW'; //This program only sends new transactions
+$message_type = 'REQ_MOD'; //This program only sends new transactions
 $txn_status_code = 'NEW';
 
 $base_rates = [
@@ -113,60 +110,66 @@ $last_names = array('Walker','Thompson','Anderson','Johnson','Tremblay','Peltier
 
 //In an initial pass create a file with the header row for each sending remitter
 foreach($sndr_rmtr_ids as $sndr_rmtr_id){
-    $filename = '../logs/'.$sndr_rmtr_id."_post_new_txnrequests_log.csv";
+    $filename = '../logs/'.$sndr_rmtr_id."_post_mod_txnrequests_log.csv";
     //Write the headers
-    $header_string = "UUID,"."Posted On,"."From Remitter,"."To Remitter,"."Message Type"."Sender Txn Num\n";
+    $header_string = "UUID,"."Posted On,"."From Remitter,"."To Remitter,"."Message Type,"."Sender Txn Num\n";
     file_put_contents($filename, $header_string, FILE_APPEND | LOCK_EX);
 }
 
-//Run this in a loop to post transactions in bulk
-//Accept the number as a parameter later, hard coded for now
-//To send the specified number of transactions, invalid mppings must not count
-
 $txnrequests_sent = 0;
-$txnrequests_required = 5;
 
-while($txnrequests_sent < $txnrequests_required){
-    //Pick a sndr remitter at random 
-    $rand_num = mt_rand(0, count($sndr_rmtr_ids)-1);
-    $sndr_rmtr_id = $sndr_rmtr_ids[$rand_num];
+//Run this in a loop for each sending remitter
+foreach($sndr_rmtr_ids as $sndr_rmtr_id){
     $sndr_rmtr_api_key = $rmtr_api_keys[$sndr_rmtr_id];
 
-    //Pick a rcvr remitter at random 
-    $rand_num = mt_rand(0, count($rcvr_rmtr_ids)-1);
-    $rcvr_rmtr_id = $rcvr_rmtr_ids[$rand_num];
-    $rcvr_rmtr_api_key = $rmtr_api_keys[$sndr_rmtr_id];
+    //Read posted transactions metadata from file
+    $inputfile = "../logs/".$sndr_rmtr_id."_post_new_txnrequests_log.csv";
 
-    $rmtr_partner_mapping = $sndr_rmtr_id.'.'.$rcvr_rmtr_id;
+    if (($handle = fopen($inputfile, "r")) !== FALSE) {
+    fgetcsv($handle, 0, ","); //Get first row of headers and do nothing with them.
+    //Run this for as many transactions posted in input file
+    while (($data = fgetcsv($handle, 0, ",")) !== FALSE) {
 
+        //Only a small percentage of the new transactions should be modified
+        //Generate a number between 0 and 100 and post a mod request id number <10 (10% on an average)
+        if(mt_rand(0,100) > 9) continue;
 
-    if (in_array($rmtr_partner_mapping, $rmtr_partner_mappings)){
-        //Valid mapping
-        
-        /*** Transaction ***/
+        //The fields below are copied form the original txn
+        $from_rmtr_id = $data[2];
+        $sndr_rmtr_id = $data[2];
+
+        $to_rmtr_id = $data[3];
+        $rcvr_rmtr_id = $data[3];
+
+        $sndr_txn_num = $data[5];
+
+        //Get API keys from array
+        $sndr_rmtr_api_key = $rmtr_api_keys[$sndr_rmtr_id];
+        $rcvr_rmtr_api_key = $rmtr_api_keys[$rcvr_rmtr_id];
+
+        /*** Transaction Modification Request ***/
         $txn = new Transaction();
 
         /*** TransactionMetadata ***/
         $txn->metadata =  new Metadata();
 
-        //Assign UUIS later as it needs an API call
-        $txn->metadata->from_rmtr_id = $sndr_rmtr_id;
-        $txn->metadata->to_rmtr_id = $rcvr_rmtr_id;
+        $txn->metadata->from_rmtr_id = $from_rmtr_id;
+        $txn->metadata->to_rmtr_id = $to_rmtr_id;
         //$txn->metadata->message_type = $txn_types[mt_rand(0, sizeof($txn_types)-1)];
         $txn->metadata->message_type = $message_type;
         $txn->metadata->posted_on = time();
 
         /*** TransactionData ***/
         $txn->data =  new TransactionData();
-        $txn->data->sndr_txn_num = mt_rand(100000,999999);
-        $txn->data->rcvr_txn_num = mt_rand(100000,999999);
-        $txn->data->bene_code = mt_rand(100000,999999);
-        $txn->data->sndr_cntry_code = $rmtr_country[$sndr_rmtr_id];
-        $txn->data->rcvr_cntry_code = $rmtr_country[$rcvr_rmtr_id];
+        $txn->data->sndr_txn_num = $sndr_txn_num;
+        $txn->data->rcvr_txn_num = "";
+        $txn->data->bene_code = "";
+        $txn->data->sndr_cntry_code = "";
+        $txn->data->rcvr_cntry_code = "";
         /*** Transaction Status ***/
         $txn->data->status = new Status();
             $txn->data->status->code = $txn_status_code;
-            $txn->data->status->notes = "Notes";
+            $txn->data->status->notes = "Request to modify and pay";
             $txn->data->changed_on = time();
 
         $txn->data->created_on = time();
@@ -392,7 +395,7 @@ while($txnrequests_sent < $txnrequests_required){
         $status_code = $response->getStatusCode();
 
         if($status_code = 200){
-            $filename = '../logs/'.$sndr_rmtr_id."_post_new_txnrequests_log.csv";
+            $filename = '../logs/'.$sndr_rmtr_id."_post_mod_txnrequests_log.csv";
 
             /* Log the transaction metadata to file */
             $data_string = $txn->metadata->uuid.","
@@ -400,21 +403,19 @@ while($txnrequests_sent < $txnrequests_required){
             .$txn->metadata->from_rmtr_id.","
             .$txn->metadata->to_rmtr_id.","
             .$txn->metadata->message_type.","
-            .$txn->data->sndr_txn_num."," //Required for posting modification and cancellation requests
+            .$txn->data->sndr_txn_num.","
             ."\n";
 
             file_put_contents($filename, $data_string, FILE_APPEND | LOCK_EX);
             //Increment sent transactions count
             $txnrequests_sent++;
             echo ".";
-         }else{ // not ok
+         }else{ //not OK
             $reason_phrase = $response->getReasonPhrase();
             echo 'The POST has a response with a statuscode of '.$status_code.' and a reasonphrase of '.$reason_phrase."\n";
          }
-    } else{
-        //Invalid mapping
-    }
+    } //end of while reading data fields from a line
+    } //end if
 } //end for loop
-
-echo "\nNEW requests posted: ".$txnrequests_sent."\n";
+echo "\nMOD requests posted: ".$txnrequests_sent."\n";
 ?>

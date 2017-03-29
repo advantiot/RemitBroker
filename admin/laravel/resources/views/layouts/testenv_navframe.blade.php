@@ -12,7 +12,7 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand" href="{{ url ('dashboard') }}">RemitBroker | Console</a>
+                <a class="navbar-brand" href="{{ url ('dashboard') }}">RemitBroker | Test Environment</a>
                 <button type="button" class="btn btn-danger btn-sm navbar-btn" style="margin-right:10px;" onclick="window.location='{{ url("logout") }}'">Sign Out</button>
             <!--</div>-->
             <!-- Collect the nav links, forms, and other content for toggling -->
@@ -30,29 +30,17 @@
                         <li {{ (Request::is('*dashboard') ? 'class="active"' : '') }}>
                             <a href="{{ url ('dashboard') }}"><i class="fa fa-th fa-fw"></i> Dashboard</a>
                         </li>
-                        <li {{ (Request::is('*credentials') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('credentials') }}"><i class="fa fa-key fa-fw"></i> Credentials</a>
-                        </li>
-                        <li {{ (Request::is('*partners') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('partners') }}"><i class="fa fa-bank fa-fw"></i> Partners</a>
-                        </li>
-                        <li {{ (Request::is('*notifications') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('notifications') }}"><i class="fa fa-user fa-fw"></i> Notifications</a>
-                        </li>
-                        <li {{ (Request::is('*analytics') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('analytics') }}"><i class="fa fa-bar-chart fa-fw"></i> Analytics</a>
-                        </li>
-                        <li {{ (Request::is('*billing') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('billing') }}"><i class="fa fa-money fa-fw"></i> Billing and Payments</a>
-                        </li>
-                        <li {{ (Request::is('*settings') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('settings') }}"><i class="fa fa-cog fa-fw"></i> Settings and Preferences</a>
-                        </li>
                         <li {{ (Request::is('*testenv/posttxnposts') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('testenv/posttxnposts') }}"><i class="fa fa-wrench fa-fw"></i> Test Environment</a>
+                            <a href="{{ url ('testenv/posttxnposts') }}"><i class="fa fa-th fa-fw"></i> Post Txn Requests</a>
                         </li>
-                        <li {{ (Request::is('*help/overview') ? 'class="active"' : '') }}>
-                            <a href="{{ url ('help/overview') }}"><i class="fa fa-question fa-fw"></i> Help</a>
+                        <li {{ (Request::is('*testenv/gettxnposts') ? 'class="active"' : '') }}>
+                            <a href="{{ url ('testenv/gettxnposts') }}"><i class="fa fa-key fa-fw"></i> Post Txn Responses</a>
+                        </li>
+                        <li {{ (Request::is('*testenv/postfxrates') ? 'class="active"' : '') }}>
+                            <a href="{{ url ('testenv/postfxrates') }}"><i class="fa fa-bank fa-fw"></i> Post FX Rates</a>
+                        </li>
+                        <li {{ (Request::is('*Help') ? 'class="active"' : '') }}>
+                            <a href="{{ url ('Help') }}"><i class="fa fa-question fa-fw"></i> Help</a>
                         </li>
                     </ul>
                 </div>

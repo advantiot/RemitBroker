@@ -33,17 +33,18 @@
 
                             <div class="form-group">`
                                 <label>Master Password:</label>
-                                <input id="fld-mstrpwd" class="form-control" placeholder="" name="master_password" value="4tj9bO15Md" type="password">
+                                <input id="fld-mstrpwd" class="form-control" placeholder="" name="master_password" value="boardwalk" type="password">
                             </div>
 
                             <div class="form-group">
                                 <label>Current API Key:</label>
-                                <input id="fld-apikey" class="form-control" placeholder="" name="api_key" value="cd40c7a2-0474-4695-a384-e3d851708eec">
+                                <input id="fld-apikey" class="form-control" placeholder="" name="api_key" value="b32ca72b-ace3-41f6-9cc4-b8f5fcc8eca6">
                             </div>
 
                             <div class="form-group">
                                 <button id="btn-newapikey" name="submit" value="newapikey" type="submit" class="btn btn-primary">New API Key</button>
                                 <button id="btn-chngmstrpwd" name="submit" value="chngmstrpwd" type="submit" class="btn btn-primary">Change Master Password</button>
+                                <button id="btn-newkeypair" name="submit" value="newkeypair" type="submit" class="btn btn-primary">New Key Pair</button>
                             </div>
                         </form>
                         

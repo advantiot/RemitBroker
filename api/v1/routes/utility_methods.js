@@ -17,7 +17,6 @@ var utility = {
 
     //Method to generate and return a UUID
     getUUID: function(req, res) {
-        console.log(internal.arePartners(1,1));
         // Returns a random integer between min (included) and max (included)
         // Using Math.round() will give you a non-uniform distribution!
         var min = 1111111111;

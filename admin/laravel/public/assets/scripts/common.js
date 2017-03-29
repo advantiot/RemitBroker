@@ -90,7 +90,7 @@ $(document).ready(function() {
         //Make an AJAX call to the controller method to activate API Key
         $.ajax({
             type: 'POST',
-            url: '/newapikey/activate',
+            url: 'credentials/newapikey/activate',
             data: {},
             dataType: 'json',
             success: function(response) {
@@ -115,11 +115,45 @@ $(document).ready(function() {
         event.preventDefault();
     });
          
+    $(".changepartnerstatus").click(function(event) {
+        //Decode the button clicked to toggle status
+        if($(this).text() == "Activate")
+            var status_to = 1;
+        if($(this).text() == "Deactivate")
+            var status_to = 0;
+        //Make an AJAX call to the controller method to activate partner
+        $.ajax({
+            type: 'POST',
+            url: '/partners/changeStatus',
+            data: {
+                    'partner_id':$(this).attr('id'),
+                    'status_to':status_to,
+            },
+            dataType: 'json',
+            success: function(response) {
+                console.log(response);
+                window.location.href = '/partners';
+            },
+            error: function( xhr, status, error ) {
+                console.log(xhr.responseText);
+                var error_obj = JSON.parse(xhr.responseText);
+
+                $("#div-errors").empty(); //clear any earlier errors
+                $.each(error_obj, function(key,value){
+                    $("#div-errors").append('<span class="list-group-item">'+value+'</span>');
+                });
+                console.log(error_obj['api_key']);
+                $("#div-errors").show();
+            }
+        });
+        event.preventDefault();
+    });
+         
     $("#btn-confchngmstrpwd_OFF").click(function(event) {
         //Make an AJAX call to the controller method to activate API Key
         $.ajax({
             type: 'POST',
-            url: '/newapikey/activate',
+            url: 'credentials/newapikey/activate',
             data: {},
             dataType: 'json',
             success: function(response) {
@@ -176,7 +210,7 @@ function generateNewAPIKey() {
     //Make an AJAX call to the controller method to generate new api key
         $.ajax({
             type: 'POST',
-            url: '/newapikey',
+            url: 'credentials/newapikey',
             data: {
                 'remitter_id':$("#fld-remitterid").val(),
                 'master_password':$("#fld-mstrpwd").val(),

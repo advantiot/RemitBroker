@@ -74,18 +74,18 @@ router.post('/login', auth.login); //TODO
  * GET and POST
  */
 
-router.route('/v1/transactions/requests')
-.get(transaction.getAllTxnRequestsToMe) //get transactions sent to calling remitter
-.post(transaction.postOneTxnRequest) //post one by calling remitter
-.delete(transaction.deleteAllTxnRequestsFromMe); //delete all transactions posted by calling remitter (if not received by target remitter)
+router.route('/v1/transactions/posts')
+.get(transaction.getAllTxnPostsToMe) //get transactions sent to calling remitter
+.post(transaction.postOneTxnPost) //post one by calling remitter
+.delete(transaction.deleteAllTxnPostsFromMe); //delete all transactions posted by calling remitter (if not received by target remitter)
 
 /* 
  * Routes to act on an individual transaction by sender transaction id
  * only DELETE
  */
 
-router.route('/v1/transactions/requests/:sndr_txn_num')
-.delete(transaction.deleteOneTxnRequestFromMeWithSndrTxnNum); //delete only if not received by the receiver
+router.route('/v1/transactions/posts/:sndr_txn_num')
+.delete(transaction.deleteOneTxnPostFromMeWithSndrTxnNum); //delete only if not received by the receiver
 
 /*
  * Routes to manage transactions by remitter id
@@ -93,28 +93,28 @@ router.route('/v1/transactions/requests/:sndr_txn_num')
  * For DELETE the remitter id will be the target remitter id
  */
 
-router.route('/v1/transactions/requests/remitter/:rmtr_id')
+router.route('/v1/transactions/posts/remitter/:rmtr_id')
 //NOTE: This is a destructive GET, as in the transaction will be deleted from QUEUE/DB
-.get(transaction.getAllTxnRequestsToMeFromRemitter)
-.delete(transaction.deleteAllTxnRequestsFromMeToRemitter); //delete all transactions posted by calling remitter for the specified target remitter (if not received by target remitter)
+.get(transaction.getAllTxnPostsToMeFromRemitter)
+.delete(transaction.deleteAllTxnPostsFromMeToRemitter); //delete all transactions posted by calling remitter for the specified target remitter (if not received by target remitter)
  
 /*
  * Routes to transactions by type
  */
 
-router.route('/v1/transactions/requests/type/:type')
+router.route('/v1/transactions/posts/type/:type')
 //transactions *to* calling remitter *from* all remitters with specified type
 //NOTE: This is a destructive GET, as in the trasnaction will be deleted from QUEUE/DB
-.get(transaction.getAllTxnRequestsToMeWithType);
+.get(transaction.getAllTxnPostsToMeWithType);
  
 /*
  * Routes to  transactions by remitter id and type
  */
 
-router.route('/v1/transactions/requests/remitter/:rmtr_id/type/:type')
+router.route('/v1/transactions/posts/remitter/:rmtr_id/type/:type')
 //transactions for calling remitter from specified remitter with specified type
 //NOTE: This is a destructive GET, as in the trasnaction will be deleted from QUEUE/DB
-.get(transaction.getAllTxnRequestsToMeFromRemitterWithType);
+.get(transaction.getAllTxnPostsToMeFromRemitterWithType);
 
 /* 
  * Routes to create and retrieve transaction responses including ACKs, CNFs and REJs
@@ -151,7 +151,7 @@ router.route('/v1/transactions/responses/type/:type')
 router.route('/v1/transactions/responses/remitter/:rmtr_id/type/:type')
 //reponses for calling remitter from specified remitter with specified type
 //NOTE: This is a destructive GET, as in the trasnaction will be deleted from QUEUE/DB
-.get(transaction.getAllTxnRequestsToMeFromRemitterWithType);
+.get(transaction.getAllTxnPostsToMeFromRemitterWithType);
 
 /*
  * Fxrate ROUTES
@@ -190,9 +190,15 @@ router.route('/v1/uuid')
  * NOTE: These are non-destructive GETs. Only the count is returned, transactions remain
  */
 
-router.route('/v1/analytics/senttxnrequestcounts')
+//
+//Methods for OUTBOUND transactions (Requests To and Responses From Payout Remitter)
+//Called by Send Remitter
+//
+
+
+router.route('/v1/analytics/senttxnpostcounts')
 //Counts of transactions sent and responses received by calling remitter, grouped by remitter and type
-.get(analytics.getCountsOfTxnRequestsSentByMe);
+.get(analytics.getCountsOfTxnPostsSentByMe);
 
 router.route('/v1/analytics/rcvdtxnresponsecounts')
 //Counts of transactions sent and responses received by calling remitter, grouped by remitter and type
@@ -201,6 +207,23 @@ router.route('/v1/analytics/rcvdtxnresponsecounts')
 router.route('/v1/analytics/rcvdfxratecounts')
 //Counts of fxrate updates received by calling remitter, grouped by remitter
 .get(analytics.getCountsOfFxratesRcvdByMe);
+
+//
+//Methods for INBOUND transactions (Requests From and Responses To Send Remitter)
+//Called by Payout Remitter
+//
+
+router.route('/v1/analytics/rcvdtxnpostcounts')
+//Counts of transactions sent and responses received by calling remitter, grouped by remitter and type
+.get(analytics.getCountsOfTxnPostsRcvdByMe);
+
+router.route('/v1/analytics/senttxnresponsecounts')
+//Counts of transactions sent and responses received by calling remitter, grouped by remitter and type
+.get(analytics.getCountsOfTxnResponsesSentByMe);
+
+router.route('/v1/analytics/sentfxratecounts')
+//Counts of fxrate updates received by calling remitter, grouped by remitter
+.get(analytics.getCountsOfFxratesSentByMe);
 
 // Routes that can be accessed only by authenticated & authorized users
 // --------------------------------------------------------------------
