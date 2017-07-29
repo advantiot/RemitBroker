@@ -318,7 +318,7 @@ paths:
       produces:
         - application/json
       parameters:
-        - name: txnResponse
+        - name: txnAck
           description: The response object to be posted
           in: body
           required: true
@@ -595,6 +595,70 @@ paths:
       security:
         - api_key: []
 
+  /remitters:
+    post:
+      tags:
+        - remitters
+      summary: Post remitter details
+      description: This method allows remitters to post their details, including products, currencies and locations.
+      operationId: postRemitter
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: remitter
+          description: The remitter definition.
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Remitter'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+            description: Remitter details posted successfully
+        '400':
+          description: Mandatory fields
+          schema:
+            $ref: '#/definitions/MandatoryFields'
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
+  /remitters/{rmtr_id}:
+    get:
+      tags:
+        - remitters
+      summary: Get Remitter details.
+      description: This method returns the remitter details for the specified partner.
+      operationId: getRemitterById
+      produces:
+        - application/json
+      parameters:
+        - name: rmtr_id
+          description: Remitter Id of the remitter whose details are requested
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Remitter'
+        '404':
+          description: remitter not found
+        default:
+          description: Unknown error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - api_key: []
+
   /analytics/senttxnrequestcounts:
     get:
       tags:
@@ -828,11 +892,10 @@ definitions:
         $ref: '#/definitions/Message'
         description: A message object to pass information from sending remitter to receiving remitter. Optional.
 
-  TxnResponse:
+  TransactionResponse:
     required:
       - request_metadata
       - response_metadata
-      - txn_rcvd_on
     properties:
       request_metadata:
         $ref: '#/definitions/Metadata'
@@ -840,9 +903,6 @@ definitions:
       response_metadata:
         $ref: '#/definitions/Metadata'
         description: The transaction metadata required for routing and tracking.
-      txn_rcvd_on:
-        type: string
-        description: Date and Time this transaction was received by the target remitter.
       beneficiary:
         $ref: '#/definitions/Customer'
         description: Details of beneficiary. Mandatory for Paid transactions.
@@ -1089,6 +1149,62 @@ definitions:
         $ref: '#/definitions/Address'
         description: Branch address.
 
+  Remitter:
+    required:
+      - metadata
+      - data
+    properties:
+      metadata:
+        $ref: '#/definitions/Metadata'
+        description: The metadata required for routing and tracking (unencrypted).
+      data:
+        $ref: '#/definitions/RemitterData'
+        description: Transaction data (encrypted).
+
+  RemitterData:
+    required:
+      - rmtr_id
+      - legal_name
+      - trading_name
+      - country
+      - locations
+      - services
+      - products
+      - currencies
+    properties:
+      rmtr_id:
+        type: string
+        description: A remitter identifier unique across the platform.
+      legal_name:
+        type: string
+        description: Legal name of the remitter, generally not displayed to the customer.
+      trading_name:
+        type: string
+        description: Trading name of the remitter, generally displayed to the customer.
+      services:
+        type: array
+        items:
+          type: string
+        description: Array of service codes (SND,PAY)
+      products:
+        type: array
+        items:
+          type: string
+        description: Array of product codes for products serviced
+      country:
+        type: string
+        description: Remitter country ISO3 Code
+      currencies:
+        type: array
+        items:
+          type: string
+        description: Array of currency ISO3 codes that the remitter transacts in.
+      locations:
+        type: array
+        items:
+          $ref: '#/definitions/Location'
+        description: Remitter retail locations for customer reference
+
   Rule:
     required:
       - metadata
@@ -1198,15 +1314,11 @@ definitions:
         $ref: '#/definitions/Address'
         description: Permanent address of the customer.
       email:
-        type: array
-        items:
-          type: string
-        description: Email Ids of the customer.
+        type: string
+        description: Email Id of the customer.
       phone:
-        type: array
-        items:
-          type: string
-        description: Complete phone number including country and area codes. One or more.
+        type: string
+        description: Complete phone number including country and area codes
       dob:
         type: string
         description: Date of birth
@@ -1217,12 +1329,12 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/IdDoc'
-        description:  Legal identification document. One or more.
+        description:  Legal identification document.
       other_info:
         type: array
         items:
           $ref: '#/definitions/KeyValuePair'
-        description:  Open key value pairs for additional custom data
+        description:  Open key value pairs
 
   Name:
     required:
